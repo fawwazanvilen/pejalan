@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pejalan — Capture Overlay Wireframes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Caveat:wght@400;700&family=Architects+Daughter&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #ece8dd; font-family: 'Architects Daughter', cursive; color: #1a1a1a; }
+  #root { width: 100vw; height: 100vh; }
+  .wf-title { font-family: 'Caveat', cursive; font-weight: 700; font-size: 28px; letter-spacing: 0.5px; }
+  .wf-sub { font-family: 'Architects Daughter', cursive; font-size: 13px; color: #5a564f; }
+  .wf-callout {
+    font-family: 'Caveat', cursive; font-size: 18px; color: #1a1a1a;
+    background: #fff6cc; padding: 4px 10px; border: 1.4px solid #1a1a1a; display: inline-block;
+    transform: rotate(-1.5deg);
+  }
+  .wf-section-title { font-family: 'Caveat', cursive; font-weight: 700; font-size: 32px; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="wireframe-primitives.jsx"></script>
+<script type="text/babel" src="wireframes.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState } = React;
+
+// Annotation labels next to a wireframe — sticky-note vibes
+const Note = ({ text, color = "#fff6cc", angle = -1 }) => (
+  <div style={{
+    fontFamily: "'Caveat', cursive", fontSize: 17, lineHeight: 1.25,
+    background: color, color: "#1a1a1a", padding: "8px 12px",
+    border: "1.4px solid #1a1a1a",
+    transform: `rotate(${angle}deg)`,
+    maxWidth: 220,
+    boxShadow: "2px 2px 0 rgba(0,0,0,0.08)",
+  }}>{text}</div>
+);
+
+// Arrow that points from one place to another (decorative)
+const Arrow = ({ d, color = "#1a1a1a" }) => (
+  <svg width="120" height="60" style={{ position: "absolute", pointerEvents: "none" }}>
+    <path d={d} stroke={color} strokeWidth="1.6" fill="none" strokeLinecap="round" markerEnd="url(#arrowhead)" />
+    <defs>
+      <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 z" fill={color} />
+      </marker>
+    </defs>
+  </svg>
+);
+
+const Frame = ({ children, notes = [] }) => (
+  <div style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 24, padding: "12px 20px" }}>
+    <div>{children}</div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 40 }}>
+      {notes.map((n, i) => <Note key={i} text={n.text} color={n.color} angle={n.angle ?? (i % 2 === 0 ? -1.5 : 1.5)} />)}
+    </div>
+  </div>
+);
+
+const Intro = () => (
+  <div style={{ width: 520, padding: "12px 16px", fontFamily: "'Architects Daughter', cursive" }}>
+    <div style={{ fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 40, lineHeight: 1, marginBottom: 6 }}>
+      pejalan · capture overlay
+    </div>
+    <div style={{ fontSize: 14, color: "#3a3631", lineHeight: 1.45 }}>
+      low-fi wireframes — exploring layout, hierarchy, and how confidence drives chip emphasis.
+      everything sketchy on purpose so we focus on <span style={{ background: "#fff6cc", padding: "0 4px" }}>structure & flow</span>, not pixels.
+    </div>
+    <ul style={{ fontSize: 13, marginTop: 12, paddingLeft: 18, lineHeight: 1.5, color: "#1a1a1a" }}>
+      <li><b>A</b> = high-confidence happy path (97% / parkir liar / tinggi)</li>
+      <li><b>B</b> = medium-confidence with chips promoted (64% / ubin difabel / sedang)</li>
+      <li><b>alt 1–3</b> = structural variations to mix & match</li>
+    </ul>
+    <div style={{ marginTop: 14, fontSize: 12, color: "#5a564f", fontStyle: "italic" }}>
+      civic-serious tone · UI in bahasa indonesia · bbox = high-vis yellow · severity = muted earth palette
+    </div>
+  </div>
+);
+
+const A_NOTES = [
+  { text: "confidence as plain % — clear & sun-readable", color: "#fff6cc" },
+  { text: "chips de-emphasized: just thin outlines under a small prompt", color: "#e8f0d6" },
+  { text: "rationale gets a left-rule, like a pull-quote", color: "#fff6cc" },
+  { text: "mic is secondary (small circle, full-width primary CTA)", color: "#e8f0d6" },
+];
+
+const B_NOTES = [
+  { text: "yellow “ragu” banner makes the doubt explicit", color: "#fff6cc" },
+  { text: "chips live inside their own sketched card — the AI's pick is just a row, weighted slightly heavier", color: "#ffe6cc" },
+  { text: "each chip carries its % so user can see runner-ups", color: "#e8f0d6" },
+  { text: "mic & lanjutkan side-by-side: one-tap voice or commit", color: "#e8f0d6" },
+];
+
+const ALT1_NOTES = [
+  { text: "no percentage → 5-step meter w/ teal fill. friendlier, less “grade-y”", color: "#fff6cc" },
+  { text: "icon block bigger; category reads first like a label-on-a-tin", color: "#e8f0d6" },
+];
+
+const ALT2_NOTES = [
+  { text: "AI's sentence leads, the way a human would describe a problem", color: "#fff6cc" },
+  { text: "category, severity, % collapse into one chip row — secondary", color: "#e8f0d6" },
+  { text: "good for advocacy users who care about the WHY, not the taxonomy", color: "#ffe6cc" },
+];
+
+const ALT3_NOTES = [
+  { text: "minimal sheet — viewfinder stays larger, more “of the moment”", color: "#fff6cc" },
+  { text: "everything collapsed into 1 card + 2 secondary actions + 1 CTA", color: "#e8f0d6" },
+  { text: "best when speed matters more than nuance", color: "#ffe6cc" },
+];
+
+const DECISIONS = [
+  {
+    n: "01",
+    t: "two visual tracks based on AI confidence",
+    b: "high-conf: subtle correction chips, big single CTA, lets the user move on. low-conf: chips become the hero (their own card, AI’s pick shown as a row among options) and a yellow ‘agak ragu’ banner signals the system isn’t sure. this gives the human authority the AI lacks at low confidence."
+  },
+  {
+    n: "02",
+    t: "bbox = high-vis yellow only, severity = muted earth tones",
+    b: "high-vis yellow pops on any photo background (sun, asphalt, foliage) without screaming. severity uses olive / amber / oxblood — readable at WCAG AA but doesn’t mimic traffic lights or feel punitive. red is reserved for tinggi only."
+  },
+  {
+    n: "03",
+    t: "civic-serious type pairing in the wireframe phase",
+    b: "kalam (hand-feel) + jetbrains mono (machine-feel) reinforce the human-AI partnership and keep the wireframe sketchy. on hi-fi we’ll swap kalam for a sturdier sans (something like inter tight, IBM plex sans, or work sans) and keep mono for confidence / bbox labels."
+  },
+  {
+    n: "04",
+    t: "accessibility-first targets and tap regions",
+    b: "every button ≥48dp. chips are 36-44dp tall with comfortable horizontal padding. primary CTA reaches near full width. the mic always has its own dedicated affordance, not hidden in a menu — voice memos are useful in bright sun where typing fails."
+  },
+  {
+    n: "05",
+    t: "rationale as a quoted line, not a paragraph",
+    b: "left-rule + quote marks frame it as ‘the AI is telling you what it saw’ — a useful mental model, distinct from a verdict. keeps it skimmable in one breath."
+  },
+];
+
+const UNCERTAIN = [
+  {
+    t: "should the bbox label sit on the photo or beneath the sheet?",
+    b: "on the photo it’s contextual but can clash with the image; beneath it’s cleaner but loses the spatial link. worth user-testing in bright sun."
+  },
+  {
+    t: "is a numeric % okay, or does it create false precision?",
+    b: "‘yakin 64%’ is honest but 64 vs 67 isn’t meaningfully different to a human. alt 1’s 5-step meter (sangat ragu → sangat yakin) might communicate the same idea better. needs feedback from KPK/ITDP partners."
+  },
+  {
+    t: "when AI is wrong, should chips REPLACE the top result or live alongside it?",
+    b: "B and the variants show different answers. replacing (single-row selection list) is more decisive; alongside (chips under a confirmed top) is friendlier but assumes the AI is roughly right. we should test which leads to faster, more accurate corrections."
+  },
+  {
+    t: "voice memo — primary or secondary?",
+    b: "alt 3 collapses it into a sibling button; A & B treat it as a side feature. if voice context turns out to be the most valuable data for partner orgs, we should promote it."
+  },
+];
+
+function App() {
+  if (!window.DesignCanvas) {
+    return <div style={{padding:40}}>loading…</div>;
+  }
+  const { DesignCanvas, DCSection, DCArtboard } = window;
+
+  return (
+    <DesignCanvas title="Pejalan — Capture Overlay" subtitle="low-fi wireframes · bahasa indonesia · android" initialZoom={0.7}>
+      <DCSection id="intro" title="brief & approach">
+        <DCArtboard id="intro" label="brief" width={560} height={300}>
+          <Intro />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="variants" title="the two requested variants">
+        <DCArtboard id="A" label="A · high-confidence (97% parkir liar / tinggi)" width={640} height={820}>
+          <Frame notes={A_NOTES}>
+            <WireframeA />
+          </Frame>
+        </DCArtboard>
+        <DCArtboard id="B" label="B · medium-confidence (64% ubin difabel / sedang)" width={640} height={820}>
+          <Frame notes={B_NOTES}>
+            <WireframeB />
+          </Frame>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="alts" title="structural alternatives — mix & match">
+        <DCArtboard id="alt1" label="alt 1 · confidence as a 5-step meter" width={640} height={820}>
+          <Frame notes={ALT1_NOTES}>
+            <WireframeAlt1 />
+          </Frame>
+        </DCArtboard>
+        <DCArtboard id="alt2" label="alt 2 · rationale-first, category demoted" width={640} height={820}>
+          <Frame notes={ALT2_NOTES}>
+            <WireframeAlt2 />
+          </Frame>
+        </DCArtboard>
+        <DCArtboard id="alt3" label="alt 3 · minimal sheet (speed-first)" width={640} height={820}>
+          <Frame notes={ALT3_NOTES}>
+            <WireframeAlt3 />
+          </Frame>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="rationale" title="design decisions">
+        <DCArtboard id="decisions" label="why this, why now" width={760} height={680}>
+          <div style={{ padding: "24px 28px", fontFamily: "'Architects Daughter', cursive", color: "#1a1a1a" }}>
+            <div style={{ fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 36, marginBottom: 10 }}>5 decisions</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {DECISIONS.map(d => (
+                <div key={d.n} style={{ display: "flex", gap: 14 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, color: "#9a9590", paddingTop: 2 }}>{d.n}</div>
+                  <div>
+                    <div style={{ fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 22, lineHeight: 1.1, marginBottom: 4 }}>{d.t}</div>
+                    <div style={{ fontSize: 13, lineHeight: 1.45, color: "#3a3631" }}>{d.b}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DCArtboard>
+
+        <DCArtboard id="open" label="open questions to iterate on" width={620} height={680}>
+          <div style={{ padding: "24px 28px", fontFamily: "'Architects Daughter', cursive", color: "#1a1a1a" }}>
+            <div style={{ fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 36, marginBottom: 10 }}>open questions</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {UNCERTAIN.map((u, i) => (
+                <div key={i} style={{
+                  borderLeft: "3px solid #1a1a1a", paddingLeft: 12,
+                }}>
+                  <div style={{ fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 22, lineHeight: 1.15 }}>{u.t}</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.45, color: "#3a3631", marginTop: 4 }}>{u.b}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 18, padding: "10px 12px", background: "#fff6cc", border: "1.4px solid #1a1a1a", fontFamily: "'Caveat', cursive", fontSize: 18 }}>
+              next: pick a direction (A+B as the spec, or fold in an alt) → hi-fi visual pass with the deep teal / oxblood palette
+            </div>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<title>Pejalan — Mid-Fi Flow Screens</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Instrument+Serif:ital@0;1&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Anton&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#171311;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#f1ead9}
+  @keyframes blink { 0%,50% { opacity: 1 } 51%,100% { opacity: 0.2 } }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="midfi-kit.jsx"></script>
+<script type="text/babel" src="midfi-screens.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+function TypeTest() {
+  const M = window.M;
+  const variants = [
+    {
+      id: "A", name: "JetBrains Mono",
+      sub: "current · dev-tool feel",
+      ff: "'JetBrains Mono', monospace",
+      note: "Specific, technical. Reads as a tool for engineers — fine for the audit-code line but maybe too dev-coded for civic labels. Risk: drifts toward generic AI-product aesthetic.",
+      weight: 600, ls: 1.6, case: "uppercase",
+    },
+    {
+      id: "B", name: "IBM Plex Mono",
+      sub: "institutional · calmer",
+      ff: "'IBM Plex Mono', monospace",
+      note: "Same audit-form energy as JetBrains, but warmer and more state-document. Reads as 'public sector' more than 'dev tool'. Closer to NHS / Code-for-America register.",
+      weight: 500, ls: 1.6, case: "uppercase",
+    },
+    {
+      id: "C", name: "Plus Jakarta Sans · caps",
+      sub: "no mono · cohesive document",
+      ff: "'Plus Jakarta Sans', sans-serif",
+      note: "Drop mono entirely; use small all-caps of the body face. Most legible at 10–11px in bright sun. Loses the 'technical readout' specificity but the design system collapses to ONE typeface. Strong choice for an accessibility-first tool.",
+      weight: 700, ls: 1.8, case: "uppercase",
+    },
+    {
+      id: "D", name: "Barlow Semi Condensed",
+      sub: "wayfinding · public signage",
+      ff: "'Barlow Semi Condensed', sans-serif",
+      note: "Echoes transit signs and street wayfinding. Civic-infrastructure language, very on-theme for a pedestrian-audit tool. Reads like something painted on a public works van.",
+      weight: 600, ls: 1.5, case: "uppercase",
+    },
+    {
+      id: "E", name: "Space Mono",
+      sub: "warmer mono · slight quirk",
+      ff: "'Space Mono', monospace",
+      note: "Mono but with a bit of character — slab-ish, more humanist. Less corporate-tech than JetBrains, less institutional than Plex. Carries some indie civic-design warmth.",
+      weight: 400, ls: 1.4, case: "uppercase",
+    },
+  ];
+
+  const Card = ({ v }) => (
+    <div style={{
+      border: `1.5px solid ${M.ink}`, background: M.paper, color: M.ink,
+      padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10,
+      fontFamily: M.fDisplay,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <div>
+          <div style={{ fontFamily: v.ff, fontSize: 10.5, fontWeight: v.weight, letterSpacing: v.ls, textTransform: v.case, color: M.mute }}>
+            VARIAN {v.id}
+          </div>
+          <div style={{ fontFamily: M.fDisplay, fontWeight: 700, fontSize: 16, marginTop: 2 }}>
+            {v.name}
+          </div>
+          <div style={{ fontFamily: M.fDisplay, fontSize: 12, color: M.mute, marginTop: 1 }}>{v.sub}</div>
+        </div>
+        <div style={{ fontFamily: v.ff, fontSize: 11, fontWeight: v.weight, letterSpacing: v.ls, textTransform: v.case, color: M.ink, textAlign: "right" }}>
+          AaBb 0123<br/>
+          <span style={{ fontSize: 9, color: M.mute }}>09:42 WIB</span>
+        </div>
+      </div>
+
+      {/* applied fragment */}
+      <div style={{ padding: "12px 12px", background: M.paperHi, border: `1.4px solid ${M.muteLo}`, marginTop: 4 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: v.ff, fontSize: 10, fontWeight: v.weight, letterSpacing: v.ls, color: M.mute, textTransform: v.case }}>
+          <span>AUDIT · PJ-024-0247</span>
+          <span>09:42 WIB</span>
+        </div>
+        <div style={{ marginTop: 10, fontFamily: v.ff, fontSize: 10.5, fontWeight: v.weight, letterSpacing: v.ls, color: M.mute, textTransform: v.case }}>
+          <span style={{ color: M.ink, fontWeight: 700 }}>§01</span> &nbsp;Kategori terdeteksi
+        </div>
+        <div style={{ fontFamily: M.fDisplay, fontWeight: 800, fontSize: 26, lineHeight: 0.95, letterSpacing: -0.8, color: M.ink, textTransform: "lowercase", marginTop: 2 }}>
+          parkir liar.
+        </div>
+        <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{ fontFamily: v.ff, fontSize: 10, fontWeight: v.weight, letterSpacing: v.ls, color: M.mute, textTransform: v.case }}>
+            KEYAKINAN · 5/5
+          </span>
+          <span style={{ fontFamily: M.fDisplay, fontWeight: 700, fontSize: 13 }}>sangat yakin</span>
+        </div>
+        <div style={{ display: "flex", gap: 3, marginTop: 4 }}>
+          {[1,2,3,4,5].map(i => <div key={i} style={{ flex: 1, height: 10, background: M.teal, border: `1.4px solid ${M.teal}` }}/>)}
+        </div>
+      </div>
+
+      <div style={{ fontFamily: M.fDisplay, fontSize: 12.5, lineHeight: 1.4, color: M.inkSoft }}>
+        {v.note}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: "26px 28px", color: "#f1ead9" }}>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: "#a39a8c", textTransform: "uppercase" }}>type direction</div>
+      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 32, lineHeight: 1, letterSpacing: -0.7, marginTop: 6 }}>
+        what should the utility text feel like?
+      </div>
+      <div style={{ marginTop: 8, fontSize: 13.5, color: "#cfc6b0", maxWidth: 760, lineHeight: 1.5 }}>
+        The display face (Plus Jakarta Sans, lowercase, bold) stays the same in every option — only the small caps utility text (§-codes, audit IDs, timestamps, meter labels) changes. Pick a register: dev-tool, public-document, single-family minimal, transit-signage, or warm-quirky.
+      </div>
+
+      <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+        {variants.map(v => <Card key={v.id} v={v}/>)}
+      </div>
+    </div>
+  );
+}
+
+function Intro() {
+  return (
+    <div style={{ padding: "30px 32px", color: "#f1ead9", maxWidth: 620 }}>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: "#a39a8c", textTransform: "uppercase" }}>
+        PEJALAN · MID-FI · v0.3
+      </div>
+      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 44, lineHeight: 0.95, letterSpacing: -1.2, marginTop: 8 }}>
+        a field audit tool,<br/>not a chat app.
+      </div>
+      <div style={{ marginTop: 16, fontSize: 15, lineHeight: 1.5, color: "#d6cdb8" }}>
+        Pulled back to mid-fi so we can map the whole flow before committing to a hi-fi pass. Same six categories, same confidence-driven UI, but the visual vocabulary is now closer to a Jakarta civic survey form than a generic mobile app.
+      </div>
+      <ul style={{ marginTop: 14, paddingLeft: 18, lineHeight: 1.6, fontSize: 14, color: "#cfc6b0" }}>
+        <li><b>Type:</b> Plus Jakarta Sans (display + body) — coastal-civic, locally named. JetBrains Mono for codes/timestamps.</li>
+        <li><b>Form-survey grammar:</b> numbered fields (§01, §02), audit codes, sharp rules, stamp-like severity badges.</li>
+        <li><b>Color discipline:</b> single accent per state — teal for confirm, amber for hesitation, oxblood for tinggi.</li>
+        <li><b>Bbox:</b> now computed from the photo's actual geometry so it wraps the car instead of floating.</li>
+        <li><b>Copy rules:</b> Title Case for actions ("Konfirmasi & lanjut"), <i>lowercase display headlines</i> ("parkir liar."), ALL-CAPS MONO for labels/codes.</li>
+      </ul>
+    </div>
+  );
+}
+
+function App() {
+  if (!window.DesignCanvas || !window.ScreenA) return <div style={{padding:40}}>loading…</div>;
+  const { DesignCanvas, DCSection, DCArtboard } = window;
+  return (
+    <DesignCanvas title="Pejalan · Capture Flow" subtitle="mid-fi · civic field-audit tool · bahasa indonesia" initialZoom={0.55}>
+      <DCSection id="intro" title="Brief">
+        <DCArtboard id="intro" label="approach" width={680} height={420}>
+          <Intro/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="capture" title="Capture loop">
+        <DCArtboard id="s1" label="01 · Pre-capture viewfinder" width={418} height={910}><ScreenPreCapture/></DCArtboard>
+        <DCArtboard id="s2" label="02 · Analyzing (on-device)" width={418} height={910}><ScreenAnalyzing/></DCArtboard>
+        <DCArtboard id="s3" label="03 · Result — high confidence" width={418} height={910}><ScreenA/></DCArtboard>
+        <DCArtboard id="s4" label="04 · Result — medium confidence" width={418} height={910}><ScreenB/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="branches" title="Side flows">
+        <DCArtboard id="s5" label="05 · Voice memo recording" width={418} height={910}><ScreenVoice/></DCArtboard>
+        <DCArtboard id="s6" label="06 · Lihat detail penalaran" width={418} height={910}><ScreenDetail/></DCArtboard>
+        <DCArtboard id="s7" label="07 · Manual category picker" width={418} height={910}><ScreenPicker/></DCArtboard>
+        <DCArtboard id="s8" label="08 · Saved · keep walking" width={418} height={910}><ScreenSaved/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="community" title="Community · map · profile · recognition">
+        <DCArtboard id="s9"  label="09 · Linimasa komunitas" width={418} height={910}><ScreenFeed/></DCArtboard>
+        <DCArtboard id="s10" label="10 · Peta audit · jakarta pusat" width={418} height={910}><ScreenMap/></DCArtboard>
+        <DCArtboard id="s11" label="11 · Profil & kontribusi" width={418} height={910}><ScreenProfile/></DCArtboard>
+        <DCArtboard id="s12" label="12 · Lencana · pengakuan sipil" width={418} height={910}><ScreenBadges/></DCArtboard>
+      </DCSection>
+
+      <DCSection id="directions" title="Visual directions — pick a world">
+        <DCArtboard id="directions" label="6 distinct aesthetic systems · same content" width={1180} height={1620}>
+          <DirectionsGrid/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="type" title="Type for utility labels — pick one">
+        <DCArtboard id="type-test" label="A/B/C/D/E · same fragment, 5 typefaces" width={1180} height={760}>
+          <TypeTest/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="notes" title="What changed">
+        <DCArtboard id="changes" label="response to your notes" width={780} height={620}>
+          <div style={{ padding: "28px 30px", color: "#f1ead9", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: "#a39a8c", textTransform: "uppercase" }}>diff vs hi-fi v0.2</div>
+            <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 30, lineHeight: 1, letterSpacing: -0.6, marginTop: 6 }}>what we fixed.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 18, fontSize: 14, lineHeight: 1.55 }}>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>1 · Less "claude-y"</div>
+                <div style={{ color: "#cfc6b0" }}>Dropped soft rounded cards & icon-bubbles. Sharp 0-2px corners, heavy 1.5-3px rules, numbered §-fields, stamp severity. Visual grammar: civic survey, not consumer app.</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>2 · Bbox actually fits the car</div>
+                <div style={{ color: "#cfc6b0" }}>Now computed from photo geometry (objectFit + objectPosition aware) so the box wraps the vehicle on any sheet height.</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>3 · Consistent capitalization</div>
+                <div style={{ color: "#cfc6b0" }}>Headlines: <i>lowercase display</i>. Body & buttons: Title Case. Labels & codes: ALL-CAPS MONO. Severity & meter labels: lowercase per the brief.</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>4 · More flows</div>
+                <div style={{ color: "#cfc6b0" }}>Added: pre-capture, analyzing, voice rec, detail penalaran, manual picker, saved. Each is a real branch point in the demo loop.</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>5 · Copywriting tighter</div>
+                <div style={{ color: "#cfc6b0" }}>"Mobil parkir · 0.0 m sisa" replaces wordy English-y "0.4m sisa lebar trotoar". Hints use imperative voice. Tips use field-survey tone.</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>6 · Single accent per state</div>
+                <div style={{ color: "#cfc6b0" }}>Teal = confirm; amber = hesitation; oxblood = tinggi or destructive. No accent collisions inside one screen.</div>
+              </div>
+            </div>
+            <div style={{ marginTop: 22, padding: "12px 14px", background: "#231d1a", borderLeft: "3px solid #f3c100", fontSize: 13.5, color: "#e6dfc8" }}>
+              <b>Next:</b> pick screens to push to hi-fi. Add: empty/error states (no detection, blurry photo, offline-out-of-space)? Onboarding? Map view of today's walk?
+            </div>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

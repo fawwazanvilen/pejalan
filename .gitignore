@@ -1,0 +1,37 @@
+# On-device ML models — too big for git, ship via adb push or download-on-first-run
+*.task
+*.tflite
+*.litertmodel
+*.bin
+*.gguf
+
+# Design tool exports / archives
+*.zip
+
+# Claude design uploads (raw reference images)
+uploads/
+
+# IDE / editor
+.idea/
+*.iml
+.vscode/
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build / dependency caches at root (Android module has its own .gitignore)
+.gradle/
+build/
+
+# Local env / secrets
+.env
+.env.local
+local.properties
+
+# Logs
+*.log
+
+# Claude Code working state (per-user)
+.claude/

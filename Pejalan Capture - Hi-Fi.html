@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pejalan — Capture Overlay (Hi-Fi)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { color-scheme: dark; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100vh; background: #14171a; font-family: 'Inter Tight', system-ui, sans-serif; color: #e6e3da; }
+  button { font-family: inherit; }
+  .stage {
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #1b2421 0%, transparent 60%),
+      radial-gradient(900px 500px at 20% 110%, #0c1817 0%, transparent 60%),
+      #0e1110;
+    padding: 56px 32px 80px;
+    display: flex; flex-direction: column; gap: 48px; align-items: center;
+  }
+  .stage-header { max-width: 980px; width: 100%; text-align: center; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 2.4px;
+    color: #f4e000; text-transform: uppercase;
+  }
+  .title {
+    font-family: 'Inter Tight', sans-serif; font-size: 36px; font-weight: 700; letter-spacing: -0.6px;
+    color: #f6f3ec; margin: 6px 0 8px;
+  }
+  .deck { font-family: 'Inter Tight', sans-serif; font-size: 15.5px; color: #8a857a; line-height: 1.55; max-width: 640px; margin: 0 auto; }
+  .phones {
+    display: flex; gap: 56px; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+  }
+  .notes-wrap {
+    max-width: 1100px; width: 100%;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    margin-top: 24px;
+  }
+  .note-card {
+    background: #181c1a; border: 1px solid #262b28; border-radius: 16px;
+    padding: 22px 24px; color: #d6d1c4;
+  }
+  .note-card h3 {
+    font-family: 'Inter Tight', sans-serif; font-size: 17px; font-weight: 600; letter-spacing: -0.2px;
+    color: #f6f3ec; margin: 0 0 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .note-card h3 .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.2px;
+    color: #0e1714; background: #f4e000; padding: 2px 6px; border-radius: 3px; font-weight: 600;
+  }
+  .note-card ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.55; font-size: 14px; }
+  .note-card li { margin: 4px 0; color: #b6b1a3; }
+  .note-card li b { color: #e6e3da; font-weight: 600; }
+  .decisions {
+    max-width: 1100px; width: 100%; margin-top: 8px;
+    background: #15191711;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1px;
+    background: #20262410; border: 1px solid #262b28; border-radius: 16px; overflow: hidden;
+  }
+  .decision {
+    background: #14181711; padding: 22px 22px;
+  }
+  .decision .num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #f4e000; letter-spacing: 1.4px; }
+  .decision .h { font-family: 'Inter Tight', sans-serif; font-size: 16px; font-weight: 600; color: #f6f3ec; margin: 6px 0 4px; line-height: 1.3; }
+  .decision .b { font-size: 13.5px; color: #a5a193; line-height: 1.55; }
+  .open-q { max-width: 980px; width: 100%; }
+  .open-q h2 { font-family: 'Inter Tight', sans-serif; font-size: 22px; font-weight: 600; color: #f6f3ec; margin: 24px 0 14px; }
+  .q { padding: 14px 18px; border-left: 3px solid #f4e000; background: #14181711; margin-bottom: 10px; border-radius: 0 10px 10px 0; }
+  .q .qt { font-family: 'Inter Tight', sans-serif; font-size: 15px; font-weight: 600; color: #f6f3ec; margin-bottom: 4px; }
+  .q .qb { font-size: 13.5px; color: #a5a193; line-height: 1.55; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="hifi-tokens.js"></script>
+<script type="text/babel" src="hifi-components.jsx"></script>
+<script type="text/babel" src="hifi-screens.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+function App() {
+  if (!window.VariantA || !window.PhoneFrame) {
+    return <div style={{ padding: 40 }}>loading…</div>;
+  }
+  return (
+    <div className="stage">
+      <div className="stage-header">
+        <div className="eyebrow">PEJALAN  ·  CAPTURE OVERLAY  ·  HI-FI</div>
+        <div className="title">After the shutter — what the AI saw.</div>
+        <div className="deck">
+          Two confidence states for the same moment in the demo. High-confidence stays out of the way; medium-confidence promotes correction to the foreground. Photo from Jakarta, all UI in Bahasa.
+        </div>
+      </div>
+
+      <div className="phones">
+        <PhoneFrame width={390} height={812} label="VARIANT A" sublabel="high-confidence · parkir liar · tinggi">
+          <VariantA />
+        </PhoneFrame>
+        <PhoneFrame width={390} height={812} label="VARIANT B" sublabel="medium-confidence · ubin difabel bermasalah · sedang">
+          <VariantB />
+        </PhoneFrame>
+      </div>
+
+      <div className="notes-wrap">
+        <div className="note-card">
+          <h3><span className="tag">A</span> high-confidence path</h3>
+          <ul>
+            <li><b>Sheet header</b>: icon + category + severity in one glance.</li>
+            <li><b>Meter pegged to “sangat yakin”</b> — no number, no false precision (logprob-friendly when we wire it up).</li>
+            <li><b>Chips are quiet</b>: a single line of muted outlines under "bukan ini?".</li>
+            <li><b>Primary CTA dominates</b> — one tap to keep walking.</li>
+          </ul>
+        </div>
+        <div className="note-card">
+          <h3><span className="tag">B</span> medium-confidence path</h3>
+          <ul>
+            <li><b>Amber "agak ragu" banner</b> makes uncertainty explicit before the user reads anything else.</li>
+            <li><b>Meter is amber + compact</b>, AI's pick is labelled "dugaan AI · kemungkinan tertinggi" (it's a guess, not a verdict).</li>
+            <li><b>Correction list is the hero</b>: each kategori shown as a row with its own share bar; AI's pick is just the selected one — easy to switch.</li>
+            <li><b>"6 kategori lainnya"</b> opens the long list without crowding here.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="decisions">
+        <div className="decision">
+          <div className="num">01</div>
+          <div className="h">Confidence as a 5-step meter, not a percentage</div>
+          <div className="b">"Sangat yakin / yakin / cukup yakin / ragu / sangat ragu" maps cleanly onto Gemma's logprobs once we wire calibration. Avoids implying 64% ≠ 67%.</div>
+        </div>
+        <div className="decision">
+          <div className="num">02</div>
+          <div className="h">Deep teal primary + oxblood for tinggi only</div>
+          <div className="b">Teal reads civic-serious and Indonesian-coastal; oxblood is reserved for the highest severity tier so red never feels punitive.</div>
+        </div>
+        <div className="decision">
+          <div className="num">03</div>
+          <div className="h">High-vis yellow bbox + mono label</div>
+          <div className="b">Pops on the jakarta-asphalt grays in the photo. JetBrains Mono inside the bbox label looks like a machine annotation rather than a UI element.</div>
+        </div>
+        <div className="decision">
+          <div className="num">04</div>
+          <div className="h">Two confidence tracks, same skeleton</div>
+          <div className="b">Both screens share header, meter, rationale, footer in the same slots — only the correction surface and accent color change. Cheap to ship, easy to A/B.</div>
+        </div>
+        <div className="decision">
+          <div className="num">05</div>
+          <div className="h">≥48dp targets, Inter Tight 600, sun-readable contrast</div>
+          <div className="b">Mic gets its own dedicated outline button (52dp) next to a 52dp CTA. Body text never drops below 13.5px on paper; meta type uses mono for shape distinction.</div>
+        </div>
+      </div>
+
+      <div className="open-q">
+        <h2>Still open — happy to iterate</h2>
+        <div className="q">
+          <div className="qt">bbox label position on the photo</div>
+          <div className="qb">In A the label sits beneath the bbox; in B it sits above. Both are deliberate (clearance), but in bright sun the on-photo placement could fight legibility — we should test a "tap the box to reveal the label" interaction.</div>
+        </div>
+        <div className="q">
+          <div className="qt">how aggressively do we promote voice memo?</div>
+          <div className="qb">Currently a sibling button next to the CTA. If partner orgs (KPK, ITDP) find voice context invaluable for context the AI misses, we should auto-open the recorder on tinggi severity.</div>
+        </div>
+        <div className="q">
+          <div className="qt">"6 kategori lainnya" disclosure (variant B)</div>
+          <div className="qb">Right now low-conf shows top-3 + an expander. Alternative: always show all 6 as a compact grid. More taps to scan, but no hidden state.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
