@@ -140,6 +140,7 @@ internal fun parseClassification(raw: String): Classification {
             kategori  = Kategori.fromString(json.optString("kategori")),
             severitas = Severitas.fromString(json.optString("severitas")),
             keyakinan = json.optDouble("keyakinan", 0.0).toFloat().coerceIn(0f, 1f),
+            walkability = json.optInt("kelayakan_pejalan_kaki", 0).coerceIn(0, 5),
             rasional  = json.optString("rasional", ""),
             bbox      = json.optJSONObject("bbox")?.let {
                 BBox(

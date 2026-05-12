@@ -342,6 +342,7 @@ private suspend fun saveLaporan(
         kategori = classification.kategori,
         severitas = classification.severitas,
         keyakinan = classification.keyakinan,
+        walkability = classification.walkability,
         rasional = classification.rasional,
         bboxX = classification.bbox.x,
         bboxY = classification.bbox.y,

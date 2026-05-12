@@ -38,6 +38,7 @@ data class Classification(
     val kategori: Kategori,
     val severitas: Severitas,
     val keyakinan: Float,
+    val walkability: Int,           // 1..5, or 0 when not applicable
     val rasional: String,
     val bbox: BBox,
 ) {
@@ -49,6 +50,7 @@ data class Classification(
             kategori = Kategori.LAINNYA,
             severitas = Severitas.RENDAH,
             keyakinan = 0f,
+            walkability = 0,
             rasional = "Tidak dapat mengklasifikasi otomatis. Coba foto ulang dengan sudut berbeda.",
             bbox = BBox.Full,
         )

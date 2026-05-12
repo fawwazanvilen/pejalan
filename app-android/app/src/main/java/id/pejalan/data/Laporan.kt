@@ -16,6 +16,7 @@ data class Laporan(
     val kategori: Kategori,
     val severitas: Severitas,
     val keyakinan: Float,
+    val walkability: Int,
     val rasional: String,
     val bboxX: Float,
     val bboxY: Float,

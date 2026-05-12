@@ -12,9 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -99,6 +103,11 @@ private fun ViolationBody(classification: Classification) {
         KeyakinanMeter(classification.meter)
     }
 
+    if (classification.walkability > 0) {
+        Spacer(Modifier.height(16.dp))
+        WalkabilityRow(classification.walkability)
+    }
+
     if (classification.rasional.isNotBlank()) {
         Spacer(Modifier.height(20.dp))
         Text(
@@ -106,6 +115,36 @@ private fun ViolationBody(classification: Classification) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+internal fun WalkabilityRow(score: Int, modifier: Modifier = Modifier) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
+        Text(
+            "Kelayakan",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.size(8.dp))
+        WalkabilityStars(score)
+    }
+}
+
+@Composable
+internal fun WalkabilityStars(score: Int) {
+    val clamped = score.coerceIn(0, 5)
+    Row {
+        repeat(5) { i ->
+            val filled = i < clamped
+            Icon(
+                imageVector = if (filled) Icons.Filled.Star else Icons.Filled.StarBorder,
+                contentDescription = null,
+                tint = if (filled) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 
@@ -140,6 +179,11 @@ private fun NonViolationBody(classification: Classification) {
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
+    }
+
+    if (classification.walkability > 0) {
+        Spacer(Modifier.height(16.dp))
+        WalkabilityRow(classification.walkability)
     }
 
     if (classification.rasional.isNotBlank()) {

@@ -34,6 +34,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.Icon
 import coil.compose.AsyncImage
 import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
@@ -123,6 +127,10 @@ private fun LaporanCard(laporan: Laporan) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
             )
+            if (laporan.walkability > 0) {
+                Spacer(Modifier.height(6.dp))
+                WalkabilityMini(laporan.walkability)
+            }
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -170,6 +178,23 @@ private fun Thumbnail(
                 color = Color.White,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WalkabilityMini(score: Int) {
+    val clamped = score.coerceIn(0, 5)
+    Row {
+        repeat(5) { i ->
+            val filled = i < clamped
+            Icon(
+                imageVector = if (filled) Icons.Filled.Star else Icons.Filled.StarBorder,
+                contentDescription = null,
+                tint = if (filled) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.size(12.dp),
             )
         }
     }

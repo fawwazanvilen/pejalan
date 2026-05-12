@@ -18,6 +18,7 @@ object SeedData {
             kategori = Kategori.PARKIR_LIAR,
             severitas = Severitas.TINGGI,
             keyakinan = 0.92f,
+            walkability = 2,
             rasional = "Beberapa motor parkir menutup separuh trotoar di Jalan Sabang. " +
                 "Pejalan kaki harus turun ke jalan raya.",
         ),
@@ -29,6 +30,7 @@ object SeedData {
             kategori = Kategori.TROTOAR_RUSAK,
             severitas = Severitas.SEDANG,
             keyakinan = 0.78f,
+            walkability = 3,
             rasional = "Paving block pecah-pecah di sepanjang Sudirman, beberapa berlubang " +
                 "cukup dalam untuk menyandung kaki.",
         ),
@@ -40,6 +42,7 @@ object SeedData {
             kategori = Kategori.HALANGAN_PERMANEN,
             severitas = Severitas.SEDANG,
             keyakinan = 0.83f,
+            walkability = 3,
             rasional = "Gerobak PKL menetap di trotoar Thamrin, menyisakan jalur sempit " +
                 "untuk dua orang yang berpapasan.",
         ),
@@ -51,6 +54,7 @@ object SeedData {
             kategori = Kategori.UBIN_DIFABEL_BERMASALAH,
             severitas = Severitas.TINGGI,
             keyakinan = 0.88f,
+            walkability = 1,
             rasional = "Guiding block kuning di Kebayoran terputus dan banyak yang hilang, " +
                 "tidak aman untuk teman tuna netra.",
         ),
@@ -62,6 +66,7 @@ object SeedData {
             kategori = Kategori.DRAINASE,
             severitas = Severitas.TINGGI,
             keyakinan = 0.81f,
+            walkability = 2,
             rasional = "Manhole terbuka di Kemang Raya tanpa pengaman. Berbahaya saat malam.",
         ),
         seed(
@@ -72,6 +77,7 @@ object SeedData {
             kategori = Kategori.TROTOAR_ABSEN,
             severitas = Severitas.SEDANG,
             keyakinan = 0.76f,
+            walkability = 2,
             rasional = "Tidak ada trotoar sepanjang 40 meter di Menteng, pejalan harus " +
                 "berbagi jalur dengan kendaraan.",
         ),
@@ -86,6 +92,7 @@ object SeedData {
         kategori: Kategori,
         severitas: Severitas,
         keyakinan: Float,
+        walkability: Int,
         rasional: String,
     ): Laporan = Laporan(
         id = id,
@@ -97,6 +104,7 @@ object SeedData {
         kategori = kategori,
         severitas = severitas,
         keyakinan = keyakinan,
+        walkability = walkability,
         rasional = rasional,
         bboxX = 0f, bboxY = 0f, bboxW = 1f, bboxH = 1f,
         memoPath = null,

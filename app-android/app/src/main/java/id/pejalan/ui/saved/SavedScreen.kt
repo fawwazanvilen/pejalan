@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import id.pejalan.data.Laporan
+import id.pejalan.ui.result.WalkabilityRow
 import id.pejalan.ui.theme.SevRendah
 import java.io.File
 import kotlinx.coroutines.flow.Flow
@@ -81,6 +82,11 @@ fun SavedScreen(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
             )
+
+            if (laporan.walkability > 0) {
+                Spacer(Modifier.height(12.dp))
+                WalkabilityRow(laporan.walkability)
+            }
 
             Spacer(Modifier.height(20.dp))
 

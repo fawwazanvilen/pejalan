@@ -18,11 +18,20 @@ Nilai severitas (hanya jika kategori adalah pelanggaran):
 - tinggi   — pejalan terpaksa turun ke jalan raya
 Jika kategori BUKAN_TROTOAR atau NIHIL, gunakan "rendah".
 
+Nilai juga "kelayakan_pejalan_kaki" sebagai skor kualitas trotoar 1–5:
+- 1: Tidak dapat dilalui pejalan kaki sama sekali
+- 2: Sangat sulit, banyak halangan, harus menghindar terus
+- 3: Bisa dilalui dengan susah payah
+- 4: Cukup nyaman untuk berjalan
+- 5: Sangat baik, ramah pejalan dan difabel
+Jika kategori BUKAN_TROTOAR, gunakan 0 (tidak berlaku).
+
 Balas JSON saja, tanpa pembuka, tanpa markdown, tanpa code fence:
 {
   "kategori": "PARKIR_LIAR",
   "severitas": "tinggi",
   "keyakinan": 0.87,
+  "kelayakan_pejalan_kaki": 2,
   "rasional": "satu kalimat bahasa Indonesia menjelaskan apa yang terlihat dan dampaknya",
   "bbox": { "x": 0.0-1.0, "y": 0.0-1.0, "w": 0.0-1.0, "h": 0.0-1.0 }
 }"""
