@@ -95,7 +95,8 @@ class GemmaClient(private val context: Context) {
             object : MessageCallback {
                 override fun onMessage(message: Message) {
                     val chunk = message.toString()
-                    Log.v(TAG, "chunk[${chunk.length}]: ${chunk.take(120).replace("\n", "\\n")}")
+                    // Per-chunk streaming log — uncomment when diagnosing partial output.
+                    // Log.v(TAG, "chunk[${chunk.length}]: ${chunk.take(120).replace("\n", "\\n")}")
                     accumulated.append(chunk)
                 }
                 override fun onDone() {

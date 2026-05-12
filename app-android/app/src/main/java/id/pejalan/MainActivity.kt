@@ -1,5 +1,6 @@
 package id.pejalan
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -22,26 +23,38 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import id.pejalan.data.Laporan
+import id.pejalan.data.LaporanDb
 import id.pejalan.ml.Classification
 import id.pejalan.ml.GemmaClient
+import id.pejalan.nav.PejalanNav
 import id.pejalan.ui.camera.CameraScreen
 import id.pejalan.ui.result.AnalyzingOverlay
 import id.pejalan.ui.result.ResultSheet
+import id.pejalan.ui.saved.SavedScreen
 import id.pejalan.ui.theme.PejalanTheme
+import java.io.File
+import java.io.FileOutputStream
+import java.util.Calendar
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var gemma: GemmaClient
+    private lateinit var db: LaporanDb
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         gemma = GemmaClient(applicationContext)
+        db = LaporanDb.getInstance(applicationContext)
         setContent {
             PejalanTheme {
-                PejalanApp(gemma)
+                PejalanApp(gemma, db)
             }
         }
     }
@@ -52,14 +65,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private sealed interface AppState {
-    object Camera : AppState
-    data class Analyzing(val bitmap: Bitmap) : AppState
-    data class Result(val bitmap: Bitmap, val classification: Classification) : AppState
+private sealed interface InitState {
+    object Loading : InitState
+    object Ready : InitState
+    data class Error(val message: String) : InitState
 }
 
 @Composable
-private fun PejalanApp(gemma: GemmaClient) {
+private fun PejalanApp(gemma: GemmaClient, db: LaporanDb) {
     var initState by remember { mutableStateOf<InitState>(InitState.Loading) }
 
     LaunchedEffect(Unit) {
@@ -74,40 +87,109 @@ private fun PejalanApp(gemma: GemmaClient) {
     when (val s = initState) {
         InitState.Loading -> SplashScreen(message = "Memuat model Gemma…")
         is InitState.Error -> SplashScreen(message = s.message, isError = true)
-        InitState.Ready -> ReadyApp(gemma)
+        InitState.Ready -> PejalanNav(
+            gemma = gemma,
+            db = db,
+            captureRoute = { CaptureRoute(gemma, db) },
+        )
     }
 }
 
-private sealed interface InitState {
-    object Loading : InitState
-    object Ready : InitState
-    data class Error(val message: String) : InitState
+private sealed interface CaptureState {
+    object Camera : CaptureState
+    data class Analyzing(val bitmap: Bitmap) : CaptureState
+    data class Result(val bitmap: Bitmap, val classification: Classification) : CaptureState
+    data class Saved(val laporan: Laporan) : CaptureState
 }
 
 @Composable
-private fun ReadyApp(gemma: GemmaClient) {
-    var state: AppState by remember { mutableStateOf(AppState.Camera) }
+private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
+    var state: CaptureState by remember { mutableStateOf(CaptureState.Camera) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     when (val s = state) {
-        AppState.Camera -> CameraScreen(onCapture = { bitmap ->
-            state = AppState.Analyzing(bitmap)
+        CaptureState.Camera -> CameraScreen(onCapture = { bitmap ->
+            state = CaptureState.Analyzing(bitmap)
             scope.launch {
                 val classification = try {
                     gemma.classify(bitmap)
                 } catch (_: Exception) {
                     Classification.Fallback
                 }
-                state = AppState.Result(bitmap, classification)
+                state = CaptureState.Result(bitmap, classification)
             }
         })
-        is AppState.Analyzing -> AnalyzingOverlay()
-        is AppState.Result -> ResultSheet(
+        is CaptureState.Analyzing -> AnalyzingOverlay()
+        is CaptureState.Result -> ResultSheet(
             classification = s.classification,
-            onDismiss = { state = AppState.Camera },
-            onConfirm = { state = AppState.Camera },
+            onDismiss = { state = CaptureState.Camera },
+            onConfirm = {
+                scope.launch {
+                    val saved = saveLaporan(context, db, s.bitmap, s.classification)
+                    state = CaptureState.Saved(saved)
+                }
+            },
+        )
+        is CaptureState.Saved -> SavedScreen(
+            laporan = s.laporan,
+            todayCountFlow = db.laporanDao().observeCountSince(startOfToday()),
+            onDone = { state = CaptureState.Camera },
         )
     }
+}
+
+private suspend fun saveLaporan(
+    context: Context,
+    db: LaporanDb,
+    bitmap: Bitmap,
+    classification: Classification,
+): Laporan = withContext(Dispatchers.IO) {
+    val dao = db.laporanDao()
+    val now = System.currentTimeMillis()
+    val cal = Calendar.getInstance().apply { timeInMillis = now }
+    val dayOfYear = cal.get(Calendar.DAY_OF_YEAR)
+    val countBefore = dao.totalCount()
+    val id = "PJ-${dayOfYear.toString().padStart(3, '0')}-${(countBefore + 1).toString().padStart(4, '0')}"
+
+    val photoDir = File(context.filesDir, "laporan").apply { mkdirs() }
+    val photoFile = File(photoDir, "$id.jpg")
+    FileOutputStream(photoFile).use { out ->
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+    }
+
+    // GPS stubbed at JL. Sabang for now; real location wiring comes later.
+    val laporan = Laporan(
+        id = id,
+        createdAt = now,
+        lat = -6.1768,
+        lng = 106.8252,
+        accuracyM = 0f,
+        photoPath = photoFile.absolutePath,
+        kategori = classification.kategori,
+        severitas = classification.severitas,
+        keyakinan = classification.keyakinan,
+        rasional = classification.rasional,
+        bboxX = classification.bbox.x,
+        bboxY = classification.bbox.y,
+        bboxW = classification.bbox.w,
+        bboxH = classification.bbox.h,
+        memoPath = null,
+        userCorrected = false,
+        syncedAt = null,
+    )
+    dao.insert(laporan)
+    laporan
+}
+
+private fun startOfToday(): Long {
+    val cal = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return cal.timeInMillis
 }
 
 @Composable
