@@ -18,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -41,6 +42,7 @@ fun ResultSheet(
     classification: Classification,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    onSaveAnyway: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -64,6 +66,17 @@ fun ResultSheet(
                 NonViolationBody(classification)
                 Spacer(Modifier.height(28.dp))
                 PrimaryButton("Kembali ke kamera", onConfirm)
+                Spacer(Modifier.height(4.dp))
+                TextButton(
+                    onClick = onSaveAnyway,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        "Simpan ke linimasa tetap",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
             }
         }
     }
@@ -138,12 +151,6 @@ private fun NonViolationBody(classification: Classification) {
         )
     }
 
-    Spacer(Modifier.height(12.dp))
-    Text(
-        "Tidak disimpan ke linimasa.",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.outline,
-    )
 }
 
 @Composable

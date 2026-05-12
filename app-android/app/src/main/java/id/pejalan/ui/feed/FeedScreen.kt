@@ -30,17 +30,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
 import id.pejalan.data.SeedData
 import id.pejalan.ml.Severitas
-import id.pejalan.ui.theme.PaperLo
+import id.pejalan.ui.theme.Mute
 import id.pejalan.ui.theme.SevRendah
 import id.pejalan.ui.theme.SevSedang
 import id.pejalan.ui.theme.SevTinggi
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,15 +92,16 @@ private fun LaporanCard(laporan: Laporan) {
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp),
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .height(72.dp)
-                .background(severityColor(laporan.severitas)),
+        Thumbnail(
+            photoPath = laporan.photoPath,
+            tintWhenMissing = thumbTint(laporan),
+            label = laporan.kategori.label,
         )
-        Spacer(Modifier.size(12.dp))
+
+        Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -108,16 +112,18 @@ private fun LaporanCard(laporan: Laporan) {
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f),
                 )
-                SeverityChipSmall(laporan.severitas)
+                if (laporan.kategori.isViolation) {
+                    SeverityChipSmall(laporan.severitas)
+                }
             }
-            Spacer(Modifier.size(6.dp))
+            Spacer(Modifier.height(6.dp))
             Text(
                 laporan.rasional,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
             )
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     laporan.id,
@@ -125,13 +131,46 @@ private fun LaporanCard(laporan: Laporan) {
                     fontFamily = FontFamily.Monospace,
                     color = MaterialTheme.colorScheme.outline,
                 )
-                Spacer(Modifier.size(8.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     "· ${relativeTime(laporan.createdAt)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun Thumbnail(
+    photoPath: String,
+    tintWhenMissing: Color,
+    label: String,
+) {
+    val hasFile = photoPath.isNotEmpty() && File(photoPath).exists()
+    Box(
+        modifier = Modifier
+            .size(72.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(tintWhenMissing),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (hasFile) {
+            AsyncImage(
+                model = File(photoPath),
+                contentDescription = label,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            // Initial letter as placeholder
+            Text(
+                label.take(1).uppercase(),
+                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }
@@ -152,6 +191,9 @@ private fun SeverityChipSmall(severity: Severitas) {
         )
     }
 }
+
+private fun thumbTint(laporan: Laporan): Color =
+    if (laporan.kategori.isViolation) severityColor(laporan.severitas) else Mute
 
 private fun severityColor(s: Severitas) = when (s) {
     Severitas.RENDAH -> SevRendah

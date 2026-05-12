@@ -24,12 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import id.pejalan.data.Laporan
 import id.pejalan.ui.theme.SevRendah
+import java.io.File
 import kotlinx.coroutines.flow.Flow
 
 @Composable
@@ -49,20 +52,7 @@ fun SavedScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(CircleShape)
-                    .background(SevRendah),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "✓",
-                    fontSize = 56.sp,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            PhotoHero(laporan.photoPath)
 
             Spacer(Modifier.height(28.dp))
 
@@ -82,15 +72,17 @@ fun SavedScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
 
             Text(
-                "${laporan.kategori.label} · ${laporan.severitas.label}",
+                if (laporan.kategori.isViolation)
+                    "${laporan.kategori.label} · ${laporan.severitas.label}"
+                else laporan.kategori.label,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
             val tallyLine = if (todayCount <= 1) {
                 "Audit pertama hari ini. Terima kasih."
@@ -103,7 +95,7 @@ fun SavedScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(40.dp))
 
             Button(
                 onClick = onDone,
@@ -116,6 +108,48 @@ fun SavedScreen(
             ) {
                 Text("Selesai", style = MaterialTheme.typography.titleMedium)
             }
+        }
+    }
+}
+
+@Composable
+private fun PhotoHero(photoPath: String) {
+    val hasFile = photoPath.isNotEmpty() && File(photoPath).exists()
+    Box(
+        modifier = Modifier.size(160.dp),
+        contentAlignment = Alignment.BottomEnd,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (hasFile) {
+                AsyncImage(
+                    model = File(photoPath),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+        }
+        // Check-mark badge in corner
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .padding(4.dp)
+                .clip(CircleShape)
+                .background(SevRendah),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                "✓",
+                fontSize = 22.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }

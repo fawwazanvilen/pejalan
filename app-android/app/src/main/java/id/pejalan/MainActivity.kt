@@ -127,11 +127,23 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
             onConfirm = {
                 if (s.classification.kategori.isViolation) {
                     scope.launch {
-                        val saved = saveLaporan(context, db, s.bitmap, s.classification)
+                        val saved = saveLaporan(
+                            context, db, s.bitmap, s.classification,
+                            userCorrected = false,
+                        )
                         state = CaptureState.Saved(saved)
                     }
                 } else {
                     state = CaptureState.Camera
+                }
+            },
+            onSaveAnyway = {
+                scope.launch {
+                    val saved = saveLaporan(
+                        context, db, s.bitmap, s.classification,
+                        userCorrected = true,
+                    )
+                    state = CaptureState.Saved(saved)
                 }
             },
         )
@@ -148,6 +160,7 @@ private suspend fun saveLaporan(
     db: LaporanDb,
     bitmap: Bitmap,
     classification: Classification,
+    userCorrected: Boolean,
 ): Laporan = withContext(Dispatchers.IO) {
     val dao = db.laporanDao()
     val now = System.currentTimeMillis()
@@ -179,7 +192,7 @@ private suspend fun saveLaporan(
         bboxW = classification.bbox.w,
         bboxH = classification.bbox.h,
         memoPath = null,
-        userCorrected = false,
+        userCorrected = userCorrected,
         syncedAt = null,
     )
     dao.insert(laporan)
