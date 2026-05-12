@@ -4,13 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -26,8 +26,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import id.pejalan.ml.Classification
+import id.pejalan.ml.Kategori
 import id.pejalan.ml.Severitas
+import id.pejalan.ui.theme.Mute
 import id.pejalan.ui.theme.SevRendah
 import id.pejalan.ui.theme.SevSedang
 import id.pejalan.ui.theme.SevTinggi
@@ -53,53 +56,102 @@ fun ResultSheet(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
         ) {
-            Text(
-                classification.kategori.label,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SeverityChip(classification.severitas)
-                Spacer(Modifier.size(12.dp))
-                KeyakinanMeter(classification.meter)
-            }
-
-            if (classification.rasional.isNotBlank()) {
-                Spacer(Modifier.height(20.dp))
-                Text(
-                    classification.rasional,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Spacer(Modifier.height(28.dp))
-
-            Button(
-                onClick = onConfirm,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            ) {
-                Text("Lanjutkan", style = MaterialTheme.typography.titleMedium)
+            if (classification.kategori.isViolation) {
+                ViolationBody(classification)
+                Spacer(Modifier.height(28.dp))
+                PrimaryButton("Lanjutkan", onConfirm)
+            } else {
+                NonViolationBody(classification)
+                Spacer(Modifier.height(28.dp))
+                PrimaryButton("Kembali ke kamera", onConfirm)
             }
         }
     }
 }
 
 @Composable
+private fun ViolationBody(classification: Classification) {
+    Text(
+        classification.kategori.label,
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+
+    Spacer(Modifier.height(12.dp))
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        SeverityChip(classification.severitas)
+        Spacer(Modifier.size(12.dp))
+        KeyakinanMeter(classification.meter)
+    }
+
+    if (classification.rasional.isNotBlank()) {
+        Spacer(Modifier.height(20.dp))
+        Text(
+            classification.rasional,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun NonViolationBody(classification: Classification) {
+    val (badgeColor, icon) = when (classification.kategori) {
+        Kategori.NIHIL -> SevRendah to "✓"
+        Kategori.BUKAN_TROTOAR -> Mute to "?"
+        else -> Mute to "—"  // LAINNYA fallback
+    }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(badgeColor),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                icon,
+                fontSize = 30.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Spacer(Modifier.size(16.dp))
+        Text(
+            classification.kategori.label,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+    }
+
+    if (classification.rasional.isNotBlank()) {
+        Spacer(Modifier.height(20.dp))
+        Text(
+            classification.rasional,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    Spacer(Modifier.height(12.dp))
+    Text(
+        "Tidak disimpan ke linimasa.",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.outline,
+    )
+}
+
+@Composable
 private fun SeverityChip(severity: Severitas) {
-    val (bg, fg) = when (severity) {
-        Severitas.RENDAH -> SevRendah to Color.White
-        Severitas.SEDANG -> SevSedang to Color.White
-        Severitas.TINGGI -> SevTinggi to Color.White
+    val bg = when (severity) {
+        Severitas.RENDAH -> SevRendah
+        Severitas.SEDANG -> SevSedang
+        Severitas.TINGGI -> SevTinggi
     }
     Box(
         modifier = Modifier
@@ -109,7 +161,7 @@ private fun SeverityChip(severity: Severitas) {
     ) {
         Text(
             severity.label,
-            color = fg,
+            color = Color.White,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
         )
@@ -131,5 +183,20 @@ private fun KeyakinanMeter(meter: Int) {
                     ),
             )
         }
+    }
+}
+
+@Composable
+private fun PrimaryButton(label: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+    ) {
+        Text(label, style = MaterialTheme.typography.titleMedium)
     }
 }

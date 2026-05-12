@@ -125,9 +125,13 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
             classification = s.classification,
             onDismiss = { state = CaptureState.Camera },
             onConfirm = {
-                scope.launch {
-                    val saved = saveLaporan(context, db, s.bitmap, s.classification)
-                    state = CaptureState.Saved(saved)
+                if (s.classification.kategori.isViolation) {
+                    scope.launch {
+                        val saved = saveLaporan(context, db, s.bitmap, s.classification)
+                        state = CaptureState.Saved(saved)
+                    }
+                } else {
+                    state = CaptureState.Camera
                 }
             },
         )
