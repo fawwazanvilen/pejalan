@@ -40,6 +40,15 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    defaultConfig {
+        buildConfigField(
+            "String",
+            "MAPBOX_ACCESS_TOKEN",
+            "\"${project.findProperty("MAPBOX_ACCESS_TOKEN") ?: ""}\"",
+        )
     }
     packaging {
         resources {
@@ -76,6 +85,9 @@ dependencies {
     implementation(libs.coil.compose)
 
     implementation(libs.play.services.location)
+
+    implementation(libs.mapbox.maps.android)
+    implementation(libs.mapbox.maps.compose)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

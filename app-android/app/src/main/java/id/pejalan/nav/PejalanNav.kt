@@ -30,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import id.pejalan.data.LaporanDb
 import id.pejalan.ml.GemmaClient
 import id.pejalan.ui.feed.FeedScreen
+import id.pejalan.ui.map.MapScreen
 
 private data class NavTab(val route: String, val label: String, val icon: ImageVector)
 
@@ -87,7 +88,7 @@ fun PejalanNav(
         ) {
             composable("capture") { captureRoute() }
             composable("feed") { FeedScreen(db) }
-            composable("map") { MapPlaceholder() }
+            composable("map") { MapScreen(db) }
         }
     }
 }
