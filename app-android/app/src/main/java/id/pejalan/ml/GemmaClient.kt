@@ -2,6 +2,7 @@ package id.pejalan.ml
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
@@ -43,7 +44,7 @@ class GemmaClient(private val context: Context) {
             backend = Backend.GPU(),
             visionBackend = Backend.GPU(),
             audioBackend = null,
-            maxNumTokens = 512,
+            maxNumTokens = 4096,
             cacheDir = cacheDir,
         )
         val newEngine = Engine(config)
@@ -65,7 +66,13 @@ class GemmaClient(private val context: Context) {
         )
         try {
             val raw = sendAndCollect(conversation, PROMPT, bitmap)
-            parseClassification(raw)
+            Log.d(TAG, "==== Gemma raw response (${raw.length} chars) ====")
+            Log.d(TAG, raw.ifBlank { "<EMPTY>" })
+            Log.d(TAG, "==== end raw response ====")
+            val parsed = parseClassification(raw)
+            Log.d(TAG, "parsed: kategori=${parsed.kategori}, severitas=${parsed.severitas}, " +
+                "keyakinan=${parsed.keyakinan}, rasional='${parsed.rasional}'")
+            parsed
         } finally {
             runCatching { conversation.close() }
         }
@@ -87,12 +94,15 @@ class GemmaClient(private val context: Context) {
             contents,
             object : MessageCallback {
                 override fun onMessage(message: Message) {
-                    accumulated.append(message.toString())
+                    val chunk = message.toString()
+                    Log.v(TAG, "chunk[${chunk.length}]: ${chunk.take(120).replace("\n", "\\n")}")
+                    accumulated.append(chunk)
                 }
                 override fun onDone() {
                     if (cont.isActive) cont.resume(accumulated.toString())
                 }
                 override fun onError(throwable: Throwable) {
+                    Log.e(TAG, "sendMessageAsync error", throwable)
                     if (cont.isActive) cont.resumeWithException(throwable)
                 }
             },
@@ -108,6 +118,7 @@ class GemmaClient(private val context: Context) {
 
     companion object {
         const val MODEL_PATH = "/data/local/tmp/llm/gemma4_e2b.litertlm"
+        private const val TAG = "PejalanGemma"
     }
 }
 

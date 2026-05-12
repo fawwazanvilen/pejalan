@@ -26,6 +26,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Required so LiteRT-LM can dlopen the device's OpenCL driver.
+             Without these, OpenCL fails to load and the OpenGL fallback path
+             (CreateSharedMemoryManager) is unimplemented in litertlm 0.11.0. -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+        <uses-native-library android:name="libcdsprpc.so" android:required="false" />
+        <uses-native-library android:name="libedgetpu_litert.so" android:required="false" />
     </application>
 
 </manifest>
