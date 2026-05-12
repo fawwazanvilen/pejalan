@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.Pejalan" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Android 12+ uses windowSplashScreen* attrs automatically.
+         Background is Paper (warm beige); the icon is our adaptive foreground
+         drawn in PaperHi on an Indigo background, so the launcher icon + splash
+         share visual DNA. -->
+    <style name="Theme.Pejalan" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowSplashScreenBackground">@color/paper</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
 </resources>

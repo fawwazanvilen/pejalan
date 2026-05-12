@@ -21,8 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,12 +55,16 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import coil.compose.AsyncImage
 import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
+import id.pejalan.data.LaporanStatus
 import id.pejalan.data.SeedData
+import id.pejalan.ml.ClassificationQueue
 import id.pejalan.ml.Kategori
 import id.pejalan.ml.Severitas
+import id.pejalan.ui.common.WalkabilityBar
 import java.io.File
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -73,6 +75,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 fun DetailScreen(
     laporanId: String,
     db: LaporanDb,
+    queue: ClassificationQueue,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -145,6 +148,18 @@ fun DetailScreen(
             ) {
                 Hero(current.photoPath)
 
+                if (current.status == LaporanStatus.FAILED) {
+                    Spacer(Modifier.height(16.dp))
+                    RetryBanner(onRetry = {
+                        scope.launch {
+                            db.laporanDao().updateStatus(current.id, LaporanStatus.PENDING)
+                            queue.enqueue()
+                            Toast.makeText(context, "Diantri ulang", Toast.LENGTH_SHORT).show()
+                            onBack()
+                        }
+                    })
+                }
+
                 Spacer(Modifier.height(20.dp))
                 Label("Kategori")
                 Spacer(Modifier.height(8.dp))
@@ -185,12 +200,17 @@ fun DetailScreen(
                 Label("Kelayakan pejalan kaki")
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Ketuk bintang untuk menilai (1–5). 0 = tidak berlaku.",
+                    "Ketuk segmen untuk menilai (1–5). 0 = tidak berlaku.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.height(8.dp))
-                WalkabilityPicker(walkability) { walkability = it }
+                Spacer(Modifier.height(12.dp))
+                WalkabilityBar(
+                    score = walkability,
+                    interactive = true,
+                    onChange = { walkability = it },
+                    showLabel = true,
+                )
 
                 Spacer(Modifier.height(20.dp))
                 Label("Rasional")
@@ -259,6 +279,10 @@ fun DetailScreen(
                 TextButton(onClick = {
                     showDeleteDialog = false
                     scope.launch {
+                        // Best-effort: delete the photo file too.
+                        if (current.photoPath.isNotEmpty()) {
+                            runCatching { File(current.photoPath).delete() }
+                        }
                         db.laporanDao().deleteById(current.id)
                         onBack()
                     }
@@ -270,6 +294,28 @@ fun DetailScreen(
                 TextButton(onClick = { showDeleteDialog = false }) { Text("Batal") }
             },
         )
+    }
+}
+
+@Composable
+private fun RetryBanner(onRetry: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Klasifikasi gagal. Coba ulang?",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onRetry) {
+            Text("Coba lagi", color = MaterialTheme.colorScheme.onErrorContainer)
+        }
     }
 }
 
@@ -309,24 +355,6 @@ private fun Label(text: String) {
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onBackground,
     )
-}
-
-@Composable
-private fun WalkabilityPicker(value: Int, onChange: (Int) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Tap a star to set value; tap the current value's star to reset to 0.
-        (1..5).forEach { i ->
-            Icon(
-                imageVector = if (i <= value) Icons.Filled.Star else Icons.Filled.StarBorder,
-                contentDescription = "$i bintang",
-                tint = if (i <= value) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clickable { onChange(if (value == i) 0 else i) },
-            )
-        }
-    }
 }
 
 @Composable

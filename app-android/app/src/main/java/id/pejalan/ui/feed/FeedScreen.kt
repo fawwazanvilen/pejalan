@@ -37,17 +37,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import coil.compose.AsyncImage
 import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
 import id.pejalan.data.LaporanStatus
 import id.pejalan.data.SeedData
 import id.pejalan.ml.Severitas
+import id.pejalan.ui.common.WalkabilityBar
 import id.pejalan.ui.theme.Mute
 import id.pejalan.ui.theme.SevRendah
 import id.pejalan.ui.theme.SevSedang
@@ -151,7 +148,7 @@ private fun LaporanCard(laporan: Laporan, onClick: () -> Unit) {
                     }
                     if (laporan.walkability > 0) {
                         Spacer(Modifier.height(6.dp))
-                        WalkabilityMini(laporan.walkability)
+                        WalkabilityBar(score = laporan.walkability, compact = true)
                     }
                 }
             }
@@ -233,23 +230,6 @@ private fun FailedHeader() {
         fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.error,
     )
-}
-
-@Composable
-private fun WalkabilityMini(score: Int) {
-    val clamped = score.coerceIn(0, 5)
-    Row {
-        repeat(5) { i ->
-            val filled = i < clamped
-            Icon(
-                imageVector = if (filled) Icons.Filled.Star else Icons.Filled.StarBorder,
-                contentDescription = null,
-                tint = if (filled) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.size(12.dp),
-            )
-        }
-    }
 }
 
 @Composable

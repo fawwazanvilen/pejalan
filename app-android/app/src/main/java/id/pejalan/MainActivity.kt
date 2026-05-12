@@ -105,6 +105,7 @@ private fun PejalanApp(gemma: GemmaClient, db: LaporanDb, queue: ClassificationQ
         InitState.Ready -> PejalanNav(
             gemma = gemma,
             db = db,
+            queue = queue,
             captureRoute = { CaptureRoute(gemma, db, queue) },
         )
     }

@@ -22,6 +22,15 @@ interface LaporanDao {
     @Query("SELECT * FROM laporan ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<Laporan>>
 
+    @Query("SELECT COUNT(*) FROM laporan")
+    fun observeTotal(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM laporan WHERE kategori = 'NIHIL'")
+    fun observeNihilCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM laporan WHERE status = 'PENDING'")
+    fun observePendingCount(): Flow<Int>
+
     @Query("SELECT * FROM laporan WHERE status = 'PENDING' ORDER BY createdAt ASC LIMIT 1")
     suspend fun findOnePending(): Laporan?
 

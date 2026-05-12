@@ -12,13 +12,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -35,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import id.pejalan.ml.Classification
 import id.pejalan.ml.Kategori
 import id.pejalan.ml.Severitas
+import id.pejalan.ui.common.WalkabilityBar
 import id.pejalan.ui.theme.Mute
 import id.pejalan.ui.theme.SevRendah
 import id.pejalan.ui.theme.SevSedang
@@ -120,31 +117,14 @@ private fun ViolationBody(classification: Classification) {
 
 @Composable
 internal fun WalkabilityRow(score: Int, modifier: Modifier = Modifier) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
+    Column(modifier = modifier) {
         Text(
             "Kelayakan",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.size(8.dp))
-        WalkabilityStars(score)
-    }
-}
-
-@Composable
-internal fun WalkabilityStars(score: Int) {
-    val clamped = score.coerceIn(0, 5)
-    Row {
-        repeat(5) { i ->
-            val filled = i < clamped
-            Icon(
-                imageVector = if (filled) Icons.Filled.Star else Icons.Filled.StarBorder,
-                contentDescription = null,
-                tint = if (filled) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.size(18.dp),
-            )
-        }
+        Spacer(Modifier.size(6.dp))
+        WalkabilityBar(score = score, showLabel = true)
     }
 }
 

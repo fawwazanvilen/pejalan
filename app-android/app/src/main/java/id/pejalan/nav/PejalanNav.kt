@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Icon
@@ -25,10 +26,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import id.pejalan.data.LaporanDb
+import id.pejalan.ml.ClassificationQueue
 import id.pejalan.ml.GemmaClient
 import id.pejalan.ui.detail.DetailScreen
 import id.pejalan.ui.feed.FeedScreen
 import id.pejalan.ui.map.MapScreen
+import id.pejalan.ui.profile.ProfileScreen
 
 private data class NavTab(val route: String, val label: String, val icon: ImageVector)
 
@@ -36,12 +39,14 @@ private val Tabs = listOf(
     NavTab("capture", "Capture", Icons.Filled.PhotoCamera),
     NavTab("feed", "Linimasa", Icons.Filled.Timeline),
     NavTab("map", "Peta", Icons.Filled.Map),
+    NavTab("profile", "Profil", Icons.Filled.Person),
 )
 
 @Composable
 fun PejalanNav(
     gemma: GemmaClient,
     db: LaporanDb,
+    queue: ClassificationQueue,
     captureRoute: @Composable () -> Unit,
 ) {
     val navController = rememberNavController()
@@ -100,6 +105,7 @@ fun PejalanNav(
                     onOpenDetail = { id -> navController.navigate("detail/$id") },
                 )
             }
+            composable("profile") { ProfileScreen(db) }
             composable(
                 "detail/{id}",
                 arguments = listOf(navArgument("id") { type = NavType.StringType }),
@@ -108,6 +114,7 @@ fun PejalanNav(
                 DetailScreen(
                     laporanId = id,
                     db = db,
+                    queue = queue,
                     onBack = { navController.popBackStack() },
                 )
             }

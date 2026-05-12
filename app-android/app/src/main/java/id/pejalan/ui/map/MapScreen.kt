@@ -13,13 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -55,6 +51,7 @@ import id.pejalan.data.LaporanDb
 import id.pejalan.data.LaporanStatus
 import id.pejalan.data.SeedData
 import id.pejalan.ml.Severitas
+import id.pejalan.ui.common.WalkabilityBar
 import id.pejalan.ui.theme.Indigo
 import id.pejalan.ui.theme.IndigoTint
 import id.pejalan.ui.theme.Mute
@@ -186,7 +183,7 @@ private fun LaporanDetailSheet(
                             Spacer(Modifier.width(8.dp))
                         }
                         if (laporan.walkability > 0) {
-                            WalkabilityMini(laporan.walkability)
+                            WalkabilityBar(score = laporan.walkability, compact = true)
                         }
                     }
                 }
@@ -279,23 +276,6 @@ private fun SeverityChipSmall(severity: Severitas) {
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
         )
-    }
-}
-
-@Composable
-private fun WalkabilityMini(score: Int) {
-    val clamped = score.coerceIn(0, 5)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        repeat(5) { i ->
-            val filled = i < clamped
-            Icon(
-                imageVector = if (filled) Icons.Filled.Star else Icons.Filled.StarBorder,
-                contentDescription = null,
-                tint = if (filled) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.size(13.dp),
-            )
-        }
     }
 }
 
