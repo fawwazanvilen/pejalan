@@ -37,10 +37,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import coil.compose.AsyncImage
 import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
+import id.pejalan.data.LaporanStatus
 import id.pejalan.data.SeedData
 import id.pejalan.ml.Severitas
 import id.pejalan.ui.theme.Mute
@@ -108,28 +110,36 @@ private fun LaporanCard(laporan: Laporan) {
         Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    laporan.kategori.label,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                )
-                if (laporan.kategori.isViolation) {
-                    SeverityChipSmall(laporan.severitas)
+            when (laporan.status) {
+                LaporanStatus.PENDING -> PendingHeader()
+                LaporanStatus.FAILED -> FailedHeader()
+                LaporanStatus.CLASSIFIED -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            laporan.kategori.label,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (laporan.kategori.isViolation) {
+                            SeverityChipSmall(laporan.severitas)
+                        }
+                    }
+                    if (laporan.rasional.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            laporan.rasional,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                        )
+                    }
+                    if (laporan.walkability > 0) {
+                        Spacer(Modifier.height(6.dp))
+                        WalkabilityMini(laporan.walkability)
+                    }
                 }
-            }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                laporan.rasional,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-            )
-            if (laporan.walkability > 0) {
-                Spacer(Modifier.height(6.dp))
-                WalkabilityMini(laporan.walkability)
             }
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -181,6 +191,34 @@ private fun Thumbnail(
             )
         }
     }
+}
+
+@Composable
+private fun PendingHeader() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(14.dp),
+            strokeWidth = 2.dp,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            "Menganalisis…",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun FailedHeader() {
+    Text(
+        "Gagal menganalisis",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.error,
+    )
 }
 
 @Composable

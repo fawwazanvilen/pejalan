@@ -25,4 +25,5 @@ data class Laporan(
     val memoPath: String?,
     val userCorrected: Boolean,
     val syncedAt: Long?,
+    val status: LaporanStatus = LaporanStatus.CLASSIFIED,
 )

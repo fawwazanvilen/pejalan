@@ -16,10 +16,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,12 +37,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 
 @Composable
-fun CameraScreen(onCapture: (Bitmap) -> Unit) {
+fun CameraScreen(
+    mode: CaptureMode,
+    onModeChange: (CaptureMode) -> Unit,
+    onCapture: (Bitmap) -> Unit,
+) {
     val context = LocalContext.current
 
     var hasPermission by remember {
@@ -99,6 +106,14 @@ fun CameraScreen(onCapture: (Bitmap) -> Unit) {
             modifier = Modifier.fillMaxSize(),
         )
 
+        ModeToggle(
+            mode = mode,
+            onChange = onModeChange,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 48.dp),
+        )
+
         Shutter(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -120,6 +135,48 @@ fun CameraScreen(onCapture: (Bitmap) -> Unit) {
                     }
                 )
             },
+        )
+    }
+}
+
+@Composable
+private fun ModeToggle(
+    mode: CaptureMode,
+    onChange: (CaptureMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color.Black.copy(alpha = 0.55f))
+            .padding(4.dp),
+    ) {
+        CaptureMode.entries.forEach { entry ->
+            ModeChip(
+                label = entry.label,
+                selected = mode == entry,
+                onClick = { onChange(entry) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val bg = if (selected) Color.White else Color.Transparent
+    val fg = if (selected) Color.Black else Color.White
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(bg)
+            .clickable { onClick() }
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+    ) {
+        Text(
+            label,
+            color = fg,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
 }

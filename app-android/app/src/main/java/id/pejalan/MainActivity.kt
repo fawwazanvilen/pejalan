@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.location.Location
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -38,10 +39,14 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
+import id.pejalan.data.LaporanStatus
 import id.pejalan.ml.Classification
+import id.pejalan.ml.ClassificationQueue
 import id.pejalan.ml.GemmaClient
 import id.pejalan.nav.PejalanNav
 import id.pejalan.ui.camera.CameraScreen
+import id.pejalan.ui.camera.CaptureMode
+import id.pejalan.ui.camera.ConfirmPhotoOverlay
 import id.pejalan.ui.result.AnalyzingOverlay
 import id.pejalan.ui.result.ResultSheet
 import id.pejalan.ui.saved.SavedScreen
@@ -62,24 +67,15 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var gemma: GemmaClient
-    private lateinit var db: LaporanDb
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        gemma = GemmaClient(applicationContext)
-        db = LaporanDb.getInstance(applicationContext)
+        val app = pejalanApp
         setContent {
             PejalanTheme {
-                PejalanApp(gemma, db)
+                PejalanApp(app.gemma, app.db, app.queue)
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        gemma.close()
     }
 }
 
@@ -90,12 +86,13 @@ private sealed interface InitState {
 }
 
 @Composable
-private fun PejalanApp(gemma: GemmaClient, db: LaporanDb) {
+private fun PejalanApp(gemma: GemmaClient, db: LaporanDb, queue: ClassificationQueue) {
     var initState by remember { mutableStateOf<InitState>(InitState.Loading) }
 
     LaunchedEffect(Unit) {
         initState = try {
             gemma.initialize()
+            queue.start()
             InitState.Ready
         } catch (e: Exception) {
             InitState.Error(e.message ?: e::class.simpleName ?: "Unknown error")
@@ -108,22 +105,22 @@ private fun PejalanApp(gemma: GemmaClient, db: LaporanDb) {
         InitState.Ready -> PejalanNav(
             gemma = gemma,
             db = db,
-            captureRoute = { CaptureRoute(gemma, db) },
+            captureRoute = { CaptureRoute(gemma, db, queue) },
         )
     }
 }
 
 private sealed interface CaptureState {
     object Camera : CaptureState
+    // Mode Teliti only
     data class Analyzing(val bitmap: Bitmap) : CaptureState
-    data class Result(
-        val bitmap: Bitmap,
-        val classification: Classification,
-        val location: Location?,
-    ) : CaptureState
+    data class Result(val bitmap: Bitmap, val classification: Classification, val location: Location?) : CaptureState
+    // Mode Cepat only
+    data class ConfirmPhoto(val bitmap: Bitmap) : CaptureState
+    // Shared
     data class Saving(
         val bitmap: Bitmap,
-        val classification: Classification,
+        val classification: Classification?, // null = Cepat (save as PENDING)
         val userCorrected: Boolean,
         val phase: SavingPhase,
     ) : CaptureState
@@ -131,8 +128,9 @@ private sealed interface CaptureState {
 }
 
 @Composable
-private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
+private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb, queue: ClassificationQueue) {
     var state: CaptureState by remember { mutableStateOf(CaptureState.Camera) }
+    var mode by remember { mutableStateOf(CaptureMode.Teliti) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val fusedClient = remember { LocationServices.getFusedLocationProviderClient(context) }
@@ -141,24 +139,20 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { results ->
         val granted = results.values.any { it }
-        // Only act if user was mid-save when the prompt fired
         val current = state
         if (current is CaptureState.Saving) {
             if (granted) {
                 proceedFromPermission(
-                    scope, context, db, fusedClient, current,
+                    scope, context, db, queue, fusedClient, current,
                     setState = { state = it },
                 )
             } else {
                 state = current.copy(phase = SavingPhase.PermissionDenied)
             }
         }
-        // For proactive (Camera-entry) requests, nothing further is needed —
-        // the next capture's parallel location fetch will succeed/fail based on grant.
     }
 
     // Pro-actively request location permission as soon as the Camera screen is shown.
-    // Avoids the bad UX of asking only after a 30s classification finishes.
     LaunchedEffect(state is CaptureState.Camera) {
         if (state is CaptureState.Camera && !hasLocationPermission(context)) {
             permLauncher.launch(
@@ -172,14 +166,14 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
 
     fun startSaveWithLocationFlow(
         bitmap: Bitmap,
-        classification: Classification,
+        classification: Classification?,
         userCorrected: Boolean,
     ) {
         val saving = CaptureState.Saving(bitmap, classification, userCorrected, SavingPhase.Fetching)
         state = saving
         if (hasLocationPermission(context)) {
             proceedFromPermission(
-                scope, context, db, fusedClient, saving,
+                scope, context, db, queue, fusedClient, saving,
                 setState = { state = it },
             )
         } else {
@@ -194,7 +188,7 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
 
     fun saveOrPromptForLocation(
         bitmap: Bitmap,
-        classification: Classification,
+        classification: Classification?,
         cachedLocation: Location?,
         userCorrected: Boolean,
     ) {
@@ -202,11 +196,17 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
             scope.launch {
                 val saved = saveLaporan(
                     context, db, bitmap, classification, userCorrected, cachedLocation,
+                    status = if (classification == null) LaporanStatus.PENDING else LaporanStatus.CLASSIFIED,
                 )
-                state = CaptureState.Saved(saved)
+                if (classification == null) {
+                    queue.enqueue()
+                    Toast.makeText(context, "Antri diproses", Toast.LENGTH_SHORT).show()
+                    state = CaptureState.Camera
+                } else {
+                    state = CaptureState.Saved(saved)
+                }
             }
         } else {
-            // No cached location — run the explicit flow (permission check + retry dialogs)
             startSaveWithLocationFlow(bitmap, classification, userCorrected)
         }
     }
@@ -219,26 +219,33 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
     }
 
     when (val s = state) {
-        CaptureState.Camera -> CameraScreen(onCapture = { bitmap ->
-            state = CaptureState.Analyzing(bitmap)
-            scope.launch {
-                // Run classification and location fetch in parallel — by the time the
-                // user sees the Result sheet, both are already in hand.
-                val classificationJob = async {
-                    try {
-                        gemma.classify(bitmap)
-                    } catch (_: Exception) {
-                        Classification.Fallback
+        CaptureState.Camera -> CameraScreen(
+            mode = mode,
+            onModeChange = { mode = it },
+            onCapture = { bitmap ->
+                when (mode) {
+                    CaptureMode.Teliti -> {
+                        state = CaptureState.Analyzing(bitmap)
+                        scope.launch {
+                            val classificationJob = async {
+                                try { gemma.classify(bitmap) } catch (_: Exception) { Classification.Fallback }
+                            }
+                            val locationJob = async {
+                                if (hasLocationPermission(context)) fetchLocation(fusedClient) else null
+                            }
+                            state = CaptureState.Result(
+                                bitmap = bitmap,
+                                classification = classificationJob.await(),
+                                location = locationJob.await(),
+                            )
+                        }
+                    }
+                    CaptureMode.Cepat -> {
+                        state = CaptureState.ConfirmPhoto(bitmap)
                     }
                 }
-                val locationJob = async {
-                    if (hasLocationPermission(context)) fetchLocation(fusedClient) else null
-                }
-                val classification = classificationJob.await()
-                val location = locationJob.await()
-                state = CaptureState.Result(bitmap, classification, location)
-            }
-        })
+            },
+        )
         is CaptureState.Analyzing -> AnalyzingOverlay()
         is CaptureState.Result -> ResultSheet(
             classification = s.classification,
@@ -253,6 +260,18 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
             onSaveAnyway = {
                 saveOrPromptForLocation(s.bitmap, s.classification, s.location, true)
             },
+        )
+        is CaptureState.ConfirmPhoto -> ConfirmPhotoOverlay(
+            bitmap = s.bitmap,
+            onUse = {
+                // Save with no classification (PENDING) — queue picks it up.
+                // Try to use a cached location if we have one; fallback to fresh fetch.
+                scope.launch {
+                    val location = if (hasLocationPermission(context)) fetchLocation(fusedClient) else null
+                    saveOrPromptForLocation(s.bitmap, null, location, false)
+                }
+            },
+            onRetake = { state = CaptureState.Camera },
         )
         is CaptureState.Saving -> SavingScreen(
             phase = s.phase,
@@ -271,6 +290,7 @@ private fun proceedFromPermission(
     scope: CoroutineScope,
     context: Context,
     db: LaporanDb,
+    queue: ClassificationQueue,
     fusedClient: FusedLocationProviderClient,
     saving: CaptureState.Saving,
     setState: (CaptureState) -> Unit,
@@ -280,11 +300,18 @@ private fun proceedFromPermission(
         if (location == null) {
             setState(saving.copy(phase = SavingPhase.LocationTimeout))
         } else {
+            val status = if (saving.classification == null) LaporanStatus.PENDING else LaporanStatus.CLASSIFIED
             val saved = saveLaporan(
                 context, db, saving.bitmap, saving.classification,
-                saving.userCorrected, location,
+                saving.userCorrected, location, status,
             )
-            setState(CaptureState.Saved(saved))
+            if (saving.classification == null) {
+                queue.enqueue()
+                Toast.makeText(context, "Antri diproses", Toast.LENGTH_SHORT).show()
+                setState(CaptureState.Camera)
+            } else {
+                setState(CaptureState.Saved(saved))
+            }
         }
     }
 }
@@ -295,7 +322,7 @@ private fun hasLocationPermission(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
         PackageManager.PERMISSION_GRANTED
 
-@SuppressLint("MissingPermission") // call site has already verified permission
+@SuppressLint("MissingPermission")
 private suspend fun fetchLocation(client: FusedLocationProviderClient): Location? =
     withTimeoutOrNull(5000L) {
         suspendCancellableCoroutine<Location?> { cont ->
@@ -315,9 +342,10 @@ private suspend fun saveLaporan(
     context: Context,
     db: LaporanDb,
     bitmap: Bitmap,
-    classification: Classification,
+    classification: Classification?, // null = pending (Mode Cepat)
     userCorrected: Boolean,
     location: Location,
+    status: LaporanStatus,
 ): Laporan = withContext(Dispatchers.IO) {
     val dao = db.laporanDao()
     val now = System.currentTimeMillis()
@@ -332,6 +360,7 @@ private suspend fun saveLaporan(
         bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
     }
 
+    val effective = classification ?: Classification.Fallback
     val laporan = Laporan(
         id = id,
         createdAt = now,
@@ -339,18 +368,19 @@ private suspend fun saveLaporan(
         lng = location.longitude,
         accuracyM = location.accuracy,
         photoPath = photoFile.absolutePath,
-        kategori = classification.kategori,
-        severitas = classification.severitas,
-        keyakinan = classification.keyakinan,
-        walkability = classification.walkability,
-        rasional = classification.rasional,
-        bboxX = classification.bbox.x,
-        bboxY = classification.bbox.y,
-        bboxW = classification.bbox.w,
-        bboxH = classification.bbox.h,
+        kategori = effective.kategori,
+        severitas = effective.severitas,
+        keyakinan = effective.keyakinan,
+        walkability = effective.walkability,
+        rasional = effective.rasional,
+        bboxX = effective.bbox.x,
+        bboxY = effective.bbox.y,
+        bboxW = effective.bbox.w,
+        bboxH = effective.bbox.h,
         memoPath = null,
         userCorrected = userCorrected,
         syncedAt = null,
+        status = status,
     )
     dao.insert(laporan)
     laporan

@@ -52,6 +52,7 @@ import com.mapbox.maps.plugin.annotation.ClusterOptions
 import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationOptions
 import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
+import id.pejalan.data.LaporanStatus
 import id.pejalan.data.SeedData
 import id.pejalan.ml.Severitas
 import id.pejalan.ui.theme.Indigo
@@ -299,6 +300,7 @@ private fun WalkabilityMini(score: Int) {
 }
 
 private fun markerColor(laporan: Laporan): Color {
+    if (laporan.status != LaporanStatus.CLASSIFIED) return Mute
     if (!laporan.kategori.isViolation) return Mute
     return when (laporan.severitas) {
         Severitas.RENDAH -> SevRendah

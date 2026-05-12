@@ -19,12 +19,15 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class GemmaClient(private val context: Context) {
 
     @Volatile private var engine: Engine? = null
+    private val classifyMutex = Mutex()
 
     val modelExists: Boolean get() = File(MODEL_PATH).exists()
 
@@ -52,7 +55,11 @@ class GemmaClient(private val context: Context) {
         engine = newEngine
     }
 
-    suspend fun classify(bitmap: Bitmap): Classification = withContext(Dispatchers.Default) {
+    suspend fun classify(bitmap: Bitmap): Classification = classifyMutex.withLock {
+        classifyLocked(bitmap)
+    }
+
+    private suspend fun classifyLocked(bitmap: Bitmap): Classification = withContext(Dispatchers.Default) {
         val eng = engine ?: error("GemmaClient not initialized — call initialize() first.")
 
         val conversation = eng.createConversation(

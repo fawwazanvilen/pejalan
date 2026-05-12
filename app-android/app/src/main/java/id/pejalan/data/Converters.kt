@@ -10,4 +10,7 @@ class Converters {
 
     @TypeConverter fun fromSeveritas(value: Severitas): String = value.name
     @TypeConverter fun toSeveritas(value: String): Severitas = Severitas.fromString(value)
+
+    @TypeConverter fun fromStatus(value: LaporanStatus): String = value.name
+    @TypeConverter fun toStatus(value: String): LaporanStatus = LaporanStatus.fromString(value)
 }

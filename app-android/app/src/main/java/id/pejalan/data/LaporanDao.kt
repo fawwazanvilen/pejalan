@@ -4,6 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import id.pejalan.ml.Kategori
+import id.pejalan.ml.Severitas
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -19,4 +21,23 @@ interface LaporanDao {
 
     @Query("SELECT * FROM laporan ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<Laporan>>
+
+    @Query("SELECT * FROM laporan WHERE status = 'PENDING' ORDER BY createdAt ASC LIMIT 1")
+    suspend fun findOnePending(): Laporan?
+
+    @Query("UPDATE laporan SET kategori = :kategori, severitas = :severitas, " +
+        "keyakinan = :keyakinan, walkability = :walkability, rasional = :rasional, " +
+        "status = :status WHERE id = :id")
+    suspend fun updateClassification(
+        id: String,
+        kategori: Kategori,
+        severitas: Severitas,
+        keyakinan: Float,
+        walkability: Int,
+        rasional: String,
+        status: LaporanStatus,
+    )
+
+    @Query("UPDATE laporan SET status = :status WHERE id = :id")
+    suspend fun updateStatus(id: String, status: LaporanStatus)
 }

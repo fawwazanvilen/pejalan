@@ -14,7 +14,13 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
-@Database(entities = [Laporan::class], version = 2, exportSchema = false)
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE laporan ADD COLUMN status TEXT NOT NULL DEFAULT 'CLASSIFIED'")
+    }
+}
+
+@Database(entities = [Laporan::class], version = 3, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class LaporanDb : RoomDatabase() {
 
@@ -29,7 +35,7 @@ abstract class LaporanDb : RoomDatabase() {
                     context.applicationContext,
                     LaporanDb::class.java,
                     "pejalan.db",
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { instance = it }
             }
