@@ -1,11 +1,17 @@
 package id.pejalan
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.location.Location
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +31,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
 import id.pejalan.ml.Classification
@@ -34,13 +45,19 @@ import id.pejalan.ui.camera.CameraScreen
 import id.pejalan.ui.result.AnalyzingOverlay
 import id.pejalan.ui.result.ResultSheet
 import id.pejalan.ui.saved.SavedScreen
+import id.pejalan.ui.saving.SavingPhase
+import id.pejalan.ui.saving.SavingScreen
 import id.pejalan.ui.theme.PejalanTheme
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Calendar
+import kotlin.coroutines.resume
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : ComponentActivity() {
 
@@ -99,6 +116,12 @@ private sealed interface CaptureState {
     object Camera : CaptureState
     data class Analyzing(val bitmap: Bitmap) : CaptureState
     data class Result(val bitmap: Bitmap, val classification: Classification) : CaptureState
+    data class Saving(
+        val bitmap: Bitmap,
+        val classification: Classification,
+        val userCorrected: Boolean,
+        val phase: SavingPhase,
+    ) : CaptureState
     data class Saved(val laporan: Laporan) : CaptureState
 }
 
@@ -107,6 +130,49 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
     var state: CaptureState by remember { mutableStateOf(CaptureState.Camera) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val fusedClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    val permLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        val granted = results.values.any { it }
+        val current = state
+        if (current is CaptureState.Saving) {
+            if (granted) {
+                proceedFromPermission(
+                    scope, context, db, fusedClient, current,
+                    setState = { state = it },
+                )
+            } else {
+                state = current.copy(phase = SavingPhase.PermissionDenied)
+            }
+        }
+    }
+
+    fun startSave(bitmap: Bitmap, classification: Classification, userCorrected: Boolean) {
+        val saving = CaptureState.Saving(bitmap, classification, userCorrected, SavingPhase.Fetching)
+        state = saving
+        if (hasLocationPermission(context)) {
+            proceedFromPermission(
+                scope, context, db, fusedClient, saving,
+                setState = { state = it },
+            )
+        } else {
+            permLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                )
+            )
+        }
+    }
+
+    fun retrySave() {
+        val current = state
+        if (current is CaptureState.Saving) {
+            startSave(current.bitmap, current.classification, current.userCorrected)
+        }
+    }
 
     when (val s = state) {
         CaptureState.Camera -> CameraScreen(onCapture = { bitmap ->
@@ -126,26 +192,19 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
             onDismiss = { state = CaptureState.Camera },
             onConfirm = {
                 if (s.classification.kategori.isViolation) {
-                    scope.launch {
-                        val saved = saveLaporan(
-                            context, db, s.bitmap, s.classification,
-                            userCorrected = false,
-                        )
-                        state = CaptureState.Saved(saved)
-                    }
+                    startSave(s.bitmap, s.classification, userCorrected = false)
                 } else {
                     state = CaptureState.Camera
                 }
             },
             onSaveAnyway = {
-                scope.launch {
-                    val saved = saveLaporan(
-                        context, db, s.bitmap, s.classification,
-                        userCorrected = true,
-                    )
-                    state = CaptureState.Saved(saved)
-                }
+                startSave(s.bitmap, s.classification, userCorrected = true)
             },
+        )
+        is CaptureState.Saving -> SavingScreen(
+            phase = s.phase,
+            onRetry = { retrySave() },
+            onCancel = { state = CaptureState.Camera },
         )
         is CaptureState.Saved -> SavedScreen(
             laporan = s.laporan,
@@ -155,12 +214,57 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
     }
 }
 
+private fun proceedFromPermission(
+    scope: CoroutineScope,
+    context: Context,
+    db: LaporanDb,
+    fusedClient: FusedLocationProviderClient,
+    saving: CaptureState.Saving,
+    setState: (CaptureState) -> Unit,
+) {
+    scope.launch {
+        val location = fetchLocation(fusedClient)
+        if (location == null) {
+            setState(saving.copy(phase = SavingPhase.LocationTimeout))
+        } else {
+            val saved = saveLaporan(
+                context, db, saving.bitmap, saving.classification,
+                saving.userCorrected, location,
+            )
+            setState(CaptureState.Saved(saved))
+        }
+    }
+}
+
+private fun hasLocationPermission(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED ||
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED
+
+@SuppressLint("MissingPermission") // call site has already verified permission
+private suspend fun fetchLocation(client: FusedLocationProviderClient): Location? =
+    withTimeoutOrNull(5000L) {
+        suspendCancellableCoroutine<Location?> { cont ->
+            val token = CancellationTokenSource()
+            client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, token.token)
+                .addOnSuccessListener { location ->
+                    if (cont.isActive) cont.resume(location)
+                }
+                .addOnFailureListener { _ ->
+                    if (cont.isActive) cont.resume(null)
+                }
+            cont.invokeOnCancellation { token.cancel() }
+        }
+    }
+
 private suspend fun saveLaporan(
     context: Context,
     db: LaporanDb,
     bitmap: Bitmap,
     classification: Classification,
     userCorrected: Boolean,
+    location: Location,
 ): Laporan = withContext(Dispatchers.IO) {
     val dao = db.laporanDao()
     val now = System.currentTimeMillis()
@@ -175,13 +279,12 @@ private suspend fun saveLaporan(
         bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
     }
 
-    // GPS stubbed at JL. Sabang for now; real location wiring comes later.
     val laporan = Laporan(
         id = id,
         createdAt = now,
-        lat = -6.1768,
-        lng = 106.8252,
-        accuracyM = 0f,
+        lat = location.latitude,
+        lng = location.longitude,
+        accuracyM = location.accuracy,
         photoPath = photoFile.absolutePath,
         kategori = classification.kategori,
         severitas = classification.severitas,
