@@ -54,6 +54,7 @@ import java.util.Calendar
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -115,7 +116,11 @@ private fun PejalanApp(gemma: GemmaClient, db: LaporanDb) {
 private sealed interface CaptureState {
     object Camera : CaptureState
     data class Analyzing(val bitmap: Bitmap) : CaptureState
-    data class Result(val bitmap: Bitmap, val classification: Classification) : CaptureState
+    data class Result(
+        val bitmap: Bitmap,
+        val classification: Classification,
+        val location: Location?,
+    ) : CaptureState
     data class Saving(
         val bitmap: Bitmap,
         val classification: Classification,
@@ -136,6 +141,7 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { results ->
         val granted = results.values.any { it }
+        // Only act if user was mid-save when the prompt fired
         val current = state
         if (current is CaptureState.Saving) {
             if (granted) {
@@ -147,9 +153,28 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
                 state = current.copy(phase = SavingPhase.PermissionDenied)
             }
         }
+        // For proactive (Camera-entry) requests, nothing further is needed —
+        // the next capture's parallel location fetch will succeed/fail based on grant.
     }
 
-    fun startSave(bitmap: Bitmap, classification: Classification, userCorrected: Boolean) {
+    // Pro-actively request location permission as soon as the Camera screen is shown.
+    // Avoids the bad UX of asking only after a 30s classification finishes.
+    LaunchedEffect(state is CaptureState.Camera) {
+        if (state is CaptureState.Camera && !hasLocationPermission(context)) {
+            permLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                )
+            )
+        }
+    }
+
+    fun startSaveWithLocationFlow(
+        bitmap: Bitmap,
+        classification: Classification,
+        userCorrected: Boolean,
+    ) {
         val saving = CaptureState.Saving(bitmap, classification, userCorrected, SavingPhase.Fetching)
         state = saving
         if (hasLocationPermission(context)) {
@@ -167,10 +192,29 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
         }
     }
 
+    fun saveOrPromptForLocation(
+        bitmap: Bitmap,
+        classification: Classification,
+        cachedLocation: Location?,
+        userCorrected: Boolean,
+    ) {
+        if (cachedLocation != null) {
+            scope.launch {
+                val saved = saveLaporan(
+                    context, db, bitmap, classification, userCorrected, cachedLocation,
+                )
+                state = CaptureState.Saved(saved)
+            }
+        } else {
+            // No cached location — run the explicit flow (permission check + retry dialogs)
+            startSaveWithLocationFlow(bitmap, classification, userCorrected)
+        }
+    }
+
     fun retrySave() {
         val current = state
         if (current is CaptureState.Saving) {
-            startSave(current.bitmap, current.classification, current.userCorrected)
+            startSaveWithLocationFlow(current.bitmap, current.classification, current.userCorrected)
         }
     }
 
@@ -178,12 +222,21 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
         CaptureState.Camera -> CameraScreen(onCapture = { bitmap ->
             state = CaptureState.Analyzing(bitmap)
             scope.launch {
-                val classification = try {
-                    gemma.classify(bitmap)
-                } catch (_: Exception) {
-                    Classification.Fallback
+                // Run classification and location fetch in parallel — by the time the
+                // user sees the Result sheet, both are already in hand.
+                val classificationJob = async {
+                    try {
+                        gemma.classify(bitmap)
+                    } catch (_: Exception) {
+                        Classification.Fallback
+                    }
                 }
-                state = CaptureState.Result(bitmap, classification)
+                val locationJob = async {
+                    if (hasLocationPermission(context)) fetchLocation(fusedClient) else null
+                }
+                val classification = classificationJob.await()
+                val location = locationJob.await()
+                state = CaptureState.Result(bitmap, classification, location)
             }
         })
         is CaptureState.Analyzing -> AnalyzingOverlay()
@@ -192,13 +245,13 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb) {
             onDismiss = { state = CaptureState.Camera },
             onConfirm = {
                 if (s.classification.kategori.isViolation) {
-                    startSave(s.bitmap, s.classification, userCorrected = false)
+                    saveOrPromptForLocation(s.bitmap, s.classification, s.location, false)
                 } else {
                     state = CaptureState.Camera
                 }
             },
             onSaveAnyway = {
-                startSave(s.bitmap, s.classification, userCorrected = true)
+                saveOrPromptForLocation(s.bitmap, s.classification, s.location, true)
             },
         )
         is CaptureState.Saving -> SavingScreen(
