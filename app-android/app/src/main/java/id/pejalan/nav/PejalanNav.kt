@@ -88,7 +88,20 @@ fun PejalanNav(
         ) {
             composable("capture") { captureRoute() }
             composable("feed") { FeedScreen(db) }
-            composable("map") { MapScreen(db) }
+            composable("map") {
+                MapScreen(
+                    db = db,
+                    onOpenInFeed = {
+                        navController.navigate("feed") {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                )
+            }
         }
     }
 }

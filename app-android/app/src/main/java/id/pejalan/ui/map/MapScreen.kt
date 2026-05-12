@@ -1,15 +1,46 @@
 package id.pejalan.ui.map
 
-import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.mapbox.geojson.Point
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
@@ -24,20 +55,23 @@ import id.pejalan.data.LaporanDb
 import id.pejalan.data.SeedData
 import id.pejalan.ml.Severitas
 import id.pejalan.ui.theme.Indigo
-import id.pejalan.ui.theme.IndigoInk
+import id.pejalan.ui.theme.IndigoTint
 import id.pejalan.ui.theme.Mute
 import id.pejalan.ui.theme.SevRendah
 import id.pejalan.ui.theme.SevSedang
 import id.pejalan.ui.theme.SevTinggi
+import java.io.File
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapScreen(db: LaporanDb) {
+fun MapScreen(db: LaporanDb, onOpenInFeed: () -> Unit) {
     val real by db.laporanDao().observeAll().collectAsState(initial = emptyList())
     val seed = remember { SeedData.entries() }
     val markers = remember(real) {
         (real + seed).filter { it.lat != 0.0 || it.lng != 0.0 }
     }
-    val context = LocalContext.current
+
+    var selected: Laporan? by remember { mutableStateOf(null) }
 
     val viewportState = rememberMapViewportState {
         setCameraOptions {
@@ -68,13 +102,12 @@ fun MapScreen(db: LaporanDb) {
             annotationConfig = AnnotationConfig(
                 annotationSourceOptions = AnnotationSourceOptions(
                     clusterOptions = ClusterOptions(
-                        textColor = Color.White.toArgb(),
-                        textSize = 14.0,
-                        circleRadiusExpression = literal(22.0),
-                        colorLevels = listOf(
-                            10 to IndigoInk.toArgb(),
-                            0 to Indigo.toArgb(),
-                        ),
+                        clusterRadius = 25,
+                        clusterMaxZoom = 13,
+                        textColor = Indigo.toArgb(),
+                        textSize = 13.0,
+                        circleRadiusExpression = literal(16.0),
+                        colorLevels = listOf(0 to IndigoTint.toArgb()),
                     ),
                 ),
             ),
@@ -86,25 +119,181 @@ fun MapScreen(db: LaporanDb) {
                     val dLng = l.lng - p.longitude()
                     dLat * dLat + dLng * dLng
                 }
-                if (nearest != null) {
-                    val severityPart =
-                        if (nearest.kategori.isViolation) " · ${nearest.severitas.label}" else ""
-                    Toast.makeText(
-                        context,
-                        "${nearest.kategori.label}$severityPart",
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                if (nearest != null) selected = nearest
+                true
+            }
+            interactionsState.onClusterClicked {
+                // No-op: the cluster is dense enough that a sheet doesn't make sense;
+                // user can pinch-zoom to see individual markers (clusters disappear at zoom > 13).
+                true
+            }
+        }
+    }
+
+    val current = selected
+    if (current != null) {
+        LaporanDetailSheet(
+            laporan = current,
+            onDismiss = { selected = null },
+            onOpenInFeed = {
+                selected = null
+                onOpenInFeed()
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LaporanDetailSheet(
+    laporan: Laporan,
+    onDismiss: () -> Unit,
+    onOpenInFeed: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+        ) {
+            Row(verticalAlignment = Alignment.Top) {
+                DetailThumbnail(
+                    photoPath = laporan.photoPath,
+                    fallbackTint = markerColor(laporan),
+                    label = laporan.kategori.label,
+                )
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        laporan.kategori.label,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (laporan.kategori.isViolation) {
+                            SeverityChipSmall(laporan.severitas)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        if (laporan.walkability > 0) {
+                            WalkabilityMini(laporan.walkability)
+                        }
+                    }
                 }
-                true
             }
-            interactionsState.onClusterClicked { cluster ->
-                Toast.makeText(
-                    context,
-                    "${cluster.pointCount} laporan di sini",
-                    Toast.LENGTH_SHORT,
-                ).show()
-                true
+
+            if (laporan.rasional.isNotBlank()) {
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    laporan.rasional,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "${laporan.id}  ·  ${relativeTime(laporan.createdAt)}",
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.outline,
+            )
+
+            Spacer(Modifier.height(28.dp))
+
+            Button(
+                onClick = onOpenInFeed,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text("Buka di linimasa", style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.height(4.dp))
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    "Tutup",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailThumbnail(photoPath: String, fallbackTint: Color, label: String) {
+    val hasFile = photoPath.isNotEmpty() && File(photoPath).exists()
+    Box(
+        modifier = Modifier
+            .size(88.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(fallbackTint),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (hasFile) {
+            AsyncImage(
+                model = File(photoPath),
+                contentDescription = label,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Text(
+                label.take(1).uppercase(),
+                color = Color.White,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeverityChipSmall(severity: Severitas) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(severityColor(severity))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        Text(
+            severity.label,
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun WalkabilityMini(score: Int) {
+    val clamped = score.coerceIn(0, 5)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        repeat(5) { i ->
+            val filled = i < clamped
+            Icon(
+                imageVector = if (filled) Icons.Filled.Star else Icons.Filled.StarBorder,
+                contentDescription = null,
+                tint = if (filled) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.size(13.dp),
+            )
         }
     }
 }
@@ -115,5 +304,29 @@ private fun markerColor(laporan: Laporan): Color {
         Severitas.RENDAH -> SevRendah
         Severitas.SEDANG -> SevSedang
         Severitas.TINGGI -> SevTinggi
+    }
+}
+
+private fun severityColor(s: Severitas) = when (s) {
+    Severitas.RENDAH -> SevRendah
+    Severitas.SEDANG -> SevSedang
+    Severitas.TINGGI -> SevTinggi
+}
+
+private fun relativeTime(
+    ms: Long,
+    now: Long = System.currentTimeMillis(),
+): String {
+    val diff = (now - ms).coerceAtLeast(0)
+    val minutes = diff / 60_000
+    val hours = diff / 3_600_000
+    val days = diff / 86_400_000
+    return when {
+        minutes < 1 -> "Baru saja"
+        minutes < 60 -> "$minutes menit lalu"
+        hours < 24 -> "$hours jam lalu"
+        days < 2 -> "Kemarin"
+        days < 7 -> "$days hari lalu"
+        else -> "${days / 7} minggu lalu"
     }
 }
