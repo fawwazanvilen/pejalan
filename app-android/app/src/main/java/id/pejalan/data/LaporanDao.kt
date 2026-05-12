@@ -40,4 +40,28 @@ interface LaporanDao {
 
     @Query("UPDATE laporan SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: String, status: LaporanStatus)
+
+    @Query("SELECT * FROM laporan WHERE id = :id")
+    fun observeById(id: String): Flow<Laporan?>
+
+    @Query(
+        "UPDATE laporan SET " +
+            "kategori = :kategori, " +
+            "severitas = :severitas, " +
+            "walkability = :walkability, " +
+            "rasional = :rasional, " +
+            "userCorrected = 1, " +
+            "status = 'CLASSIFIED' " +
+            "WHERE id = :id"
+    )
+    suspend fun updateUserContent(
+        id: String,
+        kategori: Kategori,
+        severitas: Severitas,
+        walkability: Int,
+        rasional: String,
+    )
+
+    @Query("DELETE FROM laporan WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

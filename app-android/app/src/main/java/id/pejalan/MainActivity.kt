@@ -223,27 +223,8 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb, queue: Classificatio
             mode = mode,
             onModeChange = { mode = it },
             onCapture = { bitmap ->
-                when (mode) {
-                    CaptureMode.Teliti -> {
-                        state = CaptureState.Analyzing(bitmap)
-                        scope.launch {
-                            val classificationJob = async {
-                                try { gemma.classify(bitmap) } catch (_: Exception) { Classification.Fallback }
-                            }
-                            val locationJob = async {
-                                if (hasLocationPermission(context)) fetchLocation(fusedClient) else null
-                            }
-                            state = CaptureState.Result(
-                                bitmap = bitmap,
-                                classification = classificationJob.await(),
-                                location = locationJob.await(),
-                            )
-                        }
-                    }
-                    CaptureMode.Cepat -> {
-                        state = CaptureState.ConfirmPhoto(bitmap)
-                    }
-                }
+                // Both modes go through the confirmation overlay first.
+                state = CaptureState.ConfirmPhoto(bitmap)
             },
         )
         is CaptureState.Analyzing -> AnalyzingOverlay()
@@ -264,11 +245,29 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb, queue: Classificatio
         is CaptureState.ConfirmPhoto -> ConfirmPhotoOverlay(
             bitmap = s.bitmap,
             onUse = {
-                // Save with no classification (PENDING) — queue picks it up.
-                // Try to use a cached location if we have one; fallback to fresh fetch.
-                scope.launch {
-                    val location = if (hasLocationPermission(context)) fetchLocation(fusedClient) else null
-                    saveOrPromptForLocation(s.bitmap, null, location, false)
+                when (mode) {
+                    CaptureMode.Teliti -> {
+                        state = CaptureState.Analyzing(s.bitmap)
+                        scope.launch {
+                            val classificationJob = async {
+                                try { gemma.classify(s.bitmap) } catch (_: Exception) { Classification.Fallback }
+                            }
+                            val locationJob = async {
+                                if (hasLocationPermission(context)) fetchLocation(fusedClient) else null
+                            }
+                            state = CaptureState.Result(
+                                bitmap = s.bitmap,
+                                classification = classificationJob.await(),
+                                location = locationJob.await(),
+                            )
+                        }
+                    }
+                    CaptureMode.Cepat -> {
+                        scope.launch {
+                            val location = if (hasLocationPermission(context)) fetchLocation(fusedClient) else null
+                            saveOrPromptForLocation(s.bitmap, null, location, false)
+                        }
+                    }
                 }
             },
             onRetake = { state = CaptureState.Camera },

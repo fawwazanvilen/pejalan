@@ -65,7 +65,7 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapScreen(db: LaporanDb, onOpenInFeed: () -> Unit) {
+fun MapScreen(db: LaporanDb, onOpenDetail: (String) -> Unit) {
     val real by db.laporanDao().observeAll().collectAsState(initial = emptyList())
     val seed = remember { SeedData.entries() }
     val markers = remember(real) {
@@ -136,9 +136,9 @@ fun MapScreen(db: LaporanDb, onOpenInFeed: () -> Unit) {
         LaporanDetailSheet(
             laporan = current,
             onDismiss = { selected = null },
-            onOpenInFeed = {
+            onOpenDetail = {
                 selected = null
-                onOpenInFeed()
+                onOpenDetail(current.id)
             },
         )
     }
@@ -149,7 +149,7 @@ fun MapScreen(db: LaporanDb, onOpenInFeed: () -> Unit) {
 private fun LaporanDetailSheet(
     laporan: Laporan,
     onDismiss: () -> Unit,
-    onOpenInFeed: () -> Unit,
+    onOpenDetail: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -212,7 +212,7 @@ private fun LaporanDetailSheet(
             Spacer(Modifier.height(28.dp))
 
             Button(
-                onClick = onOpenInFeed,
+                onClick = onOpenDetail,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -220,7 +220,7 @@ private fun LaporanDetailSheet(
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
-                Text("Buka di linimasa", style = MaterialTheme.typography.titleMedium)
+                Text("Lihat & sunting", style = MaterialTheme.typography.titleMedium)
             }
             Spacer(Modifier.height(4.dp))
             TextButton(
