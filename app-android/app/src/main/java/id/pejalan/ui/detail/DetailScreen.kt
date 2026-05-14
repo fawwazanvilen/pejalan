@@ -1,6 +1,7 @@
 package id.pejalan.ui.detail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,12 +27,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,10 +67,15 @@ import id.pejalan.ml.ClassificationQueue
 import id.pejalan.ml.Kategori
 import id.pejalan.ml.Severitas
 import id.pejalan.ui.common.WalkabilityBar
+import id.pejalan.ui.theme.Ink
+import id.pejalan.ui.theme.Mute
+import id.pejalan.ui.theme.PaperHi
+import id.pejalan.ui.theme.SevRendah
+import id.pejalan.ui.theme.SevSedang
+import id.pejalan.ui.theme.SevTinggi
 import java.io.File
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -81,7 +88,6 @@ fun DetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Real laporan come from Room. Seed entries are in-memory only — handle separately.
     val seedMatch = remember(laporanId) { SeedData.entries().firstOrNull { it.id == laporanId } }
     val realFlow = remember(laporanId) {
         if (seedMatch != null) flowOf(seedMatch) else db.laporanDao().observeById(laporanId)
@@ -89,9 +95,9 @@ fun DetailScreen(
     val laporan by realFlow.collectAsState(initial = null)
 
     if (laporan == null) {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = Modifier.fillMaxSize(), color = PaperHi) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = Ink)
             }
         }
         return
@@ -105,6 +111,13 @@ fun DetailScreen(
     var walkability by remember(current.id) { mutableIntStateOf(current.walkability.coerceIn(0, 5)) }
     var rasional by remember(current.id) { mutableStateOf(current.rasional) }
 
+    // BUKAN_TROTOAR / LAINNYA → zero walkability automatically
+    LaunchedEffect(kategori) {
+        if (kategori == Kategori.BUKAN_TROTOAR || kategori == Kategori.LAINNYA) {
+            walkability = 0
+        }
+    }
+
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     val dirty = kategori != current.kategori ||
@@ -112,31 +125,36 @@ fun DetailScreen(
         walkability != current.walkability ||
         rasional != current.rasional
 
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    val ratingPossible = kategori != Kategori.BUKAN_TROTOAR && kategori != Kategori.LAINNYA
+
+    Surface(modifier = Modifier.fillMaxSize(), color = PaperHi) {
         Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
                 title = {
                     Text(
                         current.id,
-                        style = MaterialTheme.typography.titleMedium,
                         fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ink,
+                        letterSpacing = 0.8.sp,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Ink)
                     }
                 },
                 actions = {
                     if (!isSeed) {
                         IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Hapus")
+                            Icon(Icons.Filled.Delete, contentDescription = "Hapus", tint = Ink)
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    containerColor = PaperHi,
+                    titleContentColor = Ink,
                 ),
             )
 
@@ -160,79 +178,102 @@ fun DetailScreen(
                     })
                 }
 
-                Spacer(Modifier.height(20.dp))
-                Label("Kategori")
-                Spacer(Modifier.height(8.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Kategori.entries.forEach { k ->
-                        FilterChip(
-                            selected = kategori == k,
-                            onClick = { kategori = k },
-                            label = { Text(k.label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            ),
-                        )
-                    }
-                }
+                Spacer(Modifier.height(14.dp))
+                AuditMeta(current)
+                Spacer(Modifier.height(14.dp))
+                SharpDivider()
+                Spacer(Modifier.height(18.dp))
 
-                if (kategori.isViolation) {
-                    Spacer(Modifier.height(20.dp))
-                    Label("Severitas")
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Severitas.entries.forEach { sev ->
-                            FilterChip(
-                                selected = severitas == sev,
-                                onClick = { severitas = sev },
-                                label = { Text(sev.label) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                ),
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
-                Label("Kelayakan pejalan kaki")
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Ketuk segmen untuk menilai (1–5). 0 = tidak berlaku.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                // 01 — Kondisi
+                FieldLabel("01", "Kondisi trotoar")
+                Spacer(Modifier.height(6.dp))
+                SectionPrompt("Seberapa nyaman trotoar ini untuk pejalan?")
                 Spacer(Modifier.height(12.dp))
                 WalkabilityBar(
                     score = walkability,
-                    interactive = true,
+                    interactive = ratingPossible && !isSeed,
                     onChange = { walkability = it },
-                    showLabel = true,
+                    showLabel = false,
+                )
+                Spacer(Modifier.height(10.dp))
+                SelectedDescription(
+                    when {
+                        !ratingPossible -> "Tidak berlaku — foto bukan trotoar."
+                        walkability == 0 -> "Belum dinilai. Ketuk segmen di atas."
+                        else -> "$walkability dari 5 — ${walkabilityCopy(walkability)}"
+                    }
                 )
 
-                Spacer(Modifier.height(20.dp))
-                LabelItalic("rationale")
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(22.dp))
+                SharpDivider()
+                Spacer(Modifier.height(18.dp))
+
+                // 02 — Klasifikasi
+                FieldLabel("02", "Klasifikasi masalah")
+                Spacer(Modifier.height(6.dp))
+                SectionPrompt("Apa yang Anda lihat di trotoar ini?")
+                Spacer(Modifier.height(12.dp))
+                DisplayHeadline(displayName(kategori))
+                Spacer(Modifier.height(14.dp))
+                if (!isSeed) {
+                    KategoriChips(selected = kategori, onSelect = { kategori = it })
+                }
+
+                if (kategori.isViolation) {
+                    Spacer(Modifier.height(22.dp))
+                    SharpDivider()
+                    Spacer(Modifier.height(18.dp))
+
+                    // 03 — Severitas
+                    FieldLabel("03", "Severitas")
+                    Spacer(Modifier.height(6.dp))
+                    SectionPrompt("Seberapa mengganggu pelanggaran ini bagi pejalan?")
+                    Spacer(Modifier.height(12.dp))
+                    SeverityChips(
+                        selected = severitas,
+                        onSelect = { if (!isSeed) severitas = it },
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    SelectedDescription(severityCopy(severitas))
+                }
+
+                // 04 — Deskripsi
+                Spacer(Modifier.height(22.dp))
+                SharpDivider()
+                Spacer(Modifier.height(18.dp))
+                FieldLabel(
+                    number = if (kategori.isViolation) "04" else "03",
+                    text = "Deskripsi trotoar & masalah",
+                )
+                Spacer(Modifier.height(6.dp))
+                SectionPrompt("Apa yang Anda amati di lapangan?")
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = rasional,
-                    onValueChange = { rasional = it },
+                    onValueChange = { if (!isSeed) rasional = it },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                     maxLines = 8,
-                    placeholder = { Text("Jelaskan apa yang terlihat dan dampaknya.") },
+                    enabled = !isSeed,
+                    shape = RoundedCornerShape(2.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Ink,
+                        unfocusedBorderColor = Ink.copy(alpha = 0.4f),
+                        focusedTextColor = Ink,
+                        unfocusedTextColor = Ink,
+                        disabledTextColor = Ink,
+                        disabledBorderColor = Ink.copy(alpha = 0.3f),
+                        cursorColor = Ink,
+                    ),
                 )
 
-                Spacer(Modifier.height(24.dp))
-                Metadata(current)
                 Spacer(Modifier.height(28.dp))
             }
 
-            // Save button at bottom
+            // Save bar
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background,
+                color = PaperHi,
                 shadowElevation = 4.dp,
             ) {
                 Button(
@@ -252,18 +293,23 @@ fun DetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(20.dp)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
+                        .height(54.dp),
+                    shape = RoundedCornerShape(2.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = Ink,
+                        contentColor = PaperHi,
+                        disabledContainerColor = Ink.copy(alpha = 0.3f),
+                        disabledContentColor = PaperHi.copy(alpha = 0.7f),
                     ),
                 ) {
                     Text(
-                        if (isSeed) "Contoh — tidak bisa disunting"
-                        else if (dirty) "Simpan perubahan"
-                        else "Tidak ada perubahan",
-                        style = MaterialTheme.typography.titleMedium,
+                        when {
+                            isSeed -> "Contoh — tidak bisa disunting"
+                            dirty -> "Simpan perubahan"
+                            else -> "Tidak ada perubahan"
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
@@ -279,7 +325,6 @@ fun DetailScreen(
                 TextButton(onClick = {
                     showDeleteDialog = false
                     scope.launch {
-                        // Best-effort: delete the photo file too.
                         if (current.photoPath.isNotEmpty()) {
                             runCatching { File(current.photoPath).delete() }
                         }
@@ -297,12 +342,82 @@ fun DetailScreen(
     }
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Components — mirror ResultSheet's visual vocabulary
+// ───────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun Hero(photoPath: String) {
+    val hasFile = photoPath.isNotEmpty() && File(photoPath).exists()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Ink.copy(alpha = 0.1f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (hasFile) {
+            AsyncImage(
+                model = File(photoPath),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Text(
+                "Foto contoh",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Mute,
+                fontStyle = FontStyle.Italic,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AuditMeta(laporan: Laporan) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            relativeTime(laporan.createdAt),
+            style = MaterialTheme.typography.labelMedium,
+            color = Mute,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "·",
+            color = Mute,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "%.4f, %.4f".format(laporan.lat, laporan.lng),
+            fontFamily = FontFamily.Monospace,
+            style = MaterialTheme.typography.labelSmall,
+            color = Mute,
+        )
+        Spacer(Modifier.weight(1f))
+        if (laporan.userCorrected) {
+            Box(
+                modifier = Modifier
+                    .background(Ink.copy(alpha = 0.08f))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    "disunting",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Ink,
+                    fontStyle = FontStyle.Italic,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun RetryBanner(onRetry: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.errorContainer)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -320,91 +435,160 @@ private fun RetryBanner(onRetry: () -> Unit) {
 }
 
 @Composable
-private fun Hero(photoPath: String) {
-    val hasFile = photoPath.isNotEmpty() && File(photoPath).exists()
+private fun FieldLabel(number: String, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            number,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = Mute,
+            letterSpacing = 1.4.sp,
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = Mute,
+                letterSpacing = 0.8.sp,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun SectionPrompt(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = Mute)
+}
+
+@Composable
+private fun SelectedDescription(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        fontStyle = FontStyle.Italic,
+        color = Ink.copy(alpha = 0.75f),
+        fontWeight = FontWeight.Medium,
+    )
+}
+
+@Composable
+private fun DisplayHeadline(text: String) {
+    Text(
+        text = text,
+        fontSize = 32.sp,
+        lineHeight = 34.sp,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = (-0.8).sp,
+        color = Ink,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun KategoriChips(selected: Kategori, onSelect: (Kategori) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Kategori.entries.forEach { k ->
+            ChoiceChip(
+                label = k.label.lowercase(),
+                selected = k == selected,
+                accent = Ink,
+                onClick = { onSelect(k) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeverityChips(selected: Severitas, onSelect: (Severitas) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Severitas.entries.forEach { sev ->
+            val accent = severityColor(sev)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(if (sev == selected) accent else PaperHi)
+                    .border(1.5.dp, accent)
+                    .clickable { onSelect(sev) }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    sev.label,
+                    color = if (sev == selected) Color.White else accent,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChoiceChip(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
+) {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(220.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (hasFile) {
-            AsyncImage(
-                model = File(photoPath),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Text(
-                "Foto contoh",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun Label(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onBackground,
-    )
-}
-
-@Composable
-private fun LabelItalic(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-        color = MaterialTheme.colorScheme.onBackground,
-    )
-}
-
-@Composable
-private fun Metadata(laporan: Laporan) {
-    Column {
-        Label("Metadata")
-        Spacer(Modifier.height(6.dp))
-        MetaRow("Dibuat", relativeTime(laporan.createdAt))
-        MetaRow("Lokasi", "%.5f, %.5f".format(laporan.lat, laporan.lng))
-        if (laporan.accuracyM > 0) {
-            MetaRow("Akurasi", "± %.0f m".format(laporan.accuracyM))
-        }
-        MetaRow("Status", laporan.status.name)
-        if (laporan.userCorrected) {
-            MetaRow("Disunting", "Ya")
-        }
-    }
-}
-
-@Composable
-private fun MetaRow(key: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 3.dp)
+            .background(if (selected) accent else PaperHi)
+            .border(1.4.dp, accent)
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Text(
-            key,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(96.dp),
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontFamily = if (key == "Lokasi" || key == "Akurasi") FontFamily.Monospace else null,
+            label,
+            color = if (selected) PaperHi else accent,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
         )
     }
+}
+
+@Composable
+private fun SharpDivider() {
+    Box(modifier = Modifier.fillMaxWidth().height(1.5.dp).background(Ink))
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Helpers
+// ───────────────────────────────────────────────────────────────────────────
+
+private fun displayName(kategori: Kategori): String = when (kategori) {
+    Kategori.PARKIR_LIAR -> "parkir liar."
+    Kategori.TROTOAR_RUSAK -> "trotoar rusak."
+    Kategori.HALANGAN_PERMANEN -> "halangan permanen."
+    Kategori.UBIN_DIFABEL_BERMASALAH -> "ubin difabel bermasalah."
+    Kategori.TROTOAR_ABSEN -> "trotoar absen."
+    Kategori.DRAINASE -> "drainase."
+    Kategori.NIHIL -> "tidak ada pelanggaran."
+    Kategori.BUKAN_TROTOAR -> "bukan trotoar."
+    Kategori.LAINNYA -> "lainnya."
+}
+
+private fun severityColor(s: Severitas): Color = when (s) {
+    Severitas.RENDAH -> SevRendah
+    Severitas.SEDANG -> SevSedang
+    Severitas.TINGGI -> SevTinggi
+}
+
+private fun severityCopy(s: Severitas): String = when (s) {
+    Severitas.RENDAH -> "Pejalan masih bisa lewat dengan mudah."
+    Severitas.SEDANG -> "Pejalan harus menghindar atau memperlambat langkah."
+    Severitas.TINGGI -> "Pejalan terpaksa turun ke jalan raya."
+}
+
+private fun walkabilityCopy(score: Int): String = when (score) {
+    1 -> "Tidak dapat dilalui pejalan kaki."
+    2 -> "Sangat sulit, banyak halangan."
+    3 -> "Bisa dilalui dengan susah payah."
+    4 -> "Cukup nyaman untuk berjalan."
+    5 -> "Sangat baik, ramah pejalan dan difabel."
+    else -> "—"
 }
 
 private fun relativeTime(ms: Long, now: Long = System.currentTimeMillis()): String {
@@ -413,10 +597,10 @@ private fun relativeTime(ms: Long, now: Long = System.currentTimeMillis()): Stri
     val hours = diff / 3_600_000
     val days = diff / 86_400_000
     return when {
-        minutes < 1 -> "Baru saja"
+        minutes < 1 -> "baru saja"
         minutes < 60 -> "$minutes menit lalu"
         hours < 24 -> "$hours jam lalu"
-        days < 2 -> "Kemarin"
+        days < 2 -> "kemarin"
         days < 7 -> "$days hari lalu"
         else -> "${days / 7} minggu lalu"
     }

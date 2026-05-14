@@ -35,21 +35,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.pejalan.ui.theme.HiVis
+import kotlin.random.Random
 import kotlinx.coroutines.delay
 
 private val Steps = listOf(
     "Deteksi objek",
     "Klasifikasi kategori",
     "Penilaian severitas",
-    "Menulis rasional",
+    "Menulis rationale",
 )
 
 @Composable
 fun AnalyzingOverlay(bitmap: android.graphics.Bitmap? = null) {
     var stepIndex by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
+        // Each step takes 2.5–4 seconds with jitter so the cadence doesn't feel
+        // mechanical. The labels are aesthetic — the actual classification work
+        // happens in parallel and may finish before or after the timer.
         while (stepIndex < Steps.size - 1) {
-            delay(1800L)
+            delay(Random.nextLong(2500L, 4000L))
             stepIndex++
         }
     }
