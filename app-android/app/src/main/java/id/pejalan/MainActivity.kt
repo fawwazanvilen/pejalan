@@ -257,7 +257,7 @@ private fun CaptureRoute(
                 state = CaptureState.ConfirmPhoto(bitmap)
             },
         )
-        is CaptureState.Analyzing -> AnalyzingOverlay(bitmap = s.bitmap)
+        is CaptureState.Analyzing -> AnalyzingOverlay(bitmap = s.bitmap, mode = aiMode)
         is CaptureState.Result -> ResultSheet(
             bitmap = s.bitmap,
             classification = s.classification,

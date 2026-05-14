@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import id.pejalan.ml.AiMode
 import id.pejalan.ui.theme.HiVis
 import kotlin.random.Random
 import kotlinx.coroutines.delay
@@ -46,14 +47,20 @@ private val Steps = listOf(
 )
 
 @Composable
-fun AnalyzingOverlay(bitmap: android.graphics.Bitmap? = null) {
+fun AnalyzingOverlay(
+    bitmap: android.graphics.Bitmap? = null,
+    mode: AiMode = AiMode.Lokal,
+) {
     var stepIndex by remember { mutableIntStateOf(0) }
+    // Cloud (Gemini) returns in ~1s; on-device Gemma takes 8–15s. Match step cadence
+    // to the actual work so progress feels honest in both modes.
+    val (minDelay, maxDelay) = when (mode) {
+        AiMode.Lokal -> 2500L to 4000L
+        AiMode.Cloud -> 250L to 450L
+    }
     LaunchedEffect(Unit) {
-        // Each step takes 2.5–4 seconds with jitter so the cadence doesn't feel
-        // mechanical. The labels are aesthetic — the actual classification work
-        // happens in parallel and may finish before or after the timer.
         while (stepIndex < Steps.size - 1) {
-            delay(Random.nextLong(2500L, 4000L))
+            delay(Random.nextLong(minDelay, maxDelay))
             stepIndex++
         }
     }
@@ -88,7 +95,10 @@ fun AnalyzingOverlay(bitmap: android.graphics.Bitmap? = null) {
                     .padding(horizontal = 28.dp),
             ) {
                 Text(
-                    "Gemma 4 sedang berjalan di perangkat",
+                    when (mode) {
+                        AiMode.Lokal -> "Gemma 4 sedang berjalan di perangkat"
+                        AiMode.Cloud -> "Gemini Flash sedang memproses di cloud"
+                    },
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
