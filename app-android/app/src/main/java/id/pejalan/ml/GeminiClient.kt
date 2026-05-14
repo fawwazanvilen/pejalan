@@ -23,7 +23,8 @@ class GeminiClient(private val apiKey: String) : Classifier {
             "GEMINI_API_KEY is not set. Add it to ~/.gradle/gradle.properties."
         }
         GenerativeModel(
-            modelName = "gemini-flash-latest",
+//            modelName = "gemini-flash-latest",
+            modelName = "gemini-3.1-flash-lite",
             apiKey = apiKey,
             generationConfig = generationConfig {
                 temperature = 0.4f
