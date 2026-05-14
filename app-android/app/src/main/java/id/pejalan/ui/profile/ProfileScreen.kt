@@ -315,7 +315,7 @@ private fun AiModeSection(
     if (!cloudAvailable) {
         Spacer(Modifier.height(8.dp))
         Text(
-            "GEMINI_API_KEY belum diatur di gradle.properties.",
+            "Mode Cloud belum tersedia di build ini.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
