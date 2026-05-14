@@ -35,30 +35,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.pejalan.ui.theme.HiVis
-import id.pejalan.ui.theme.Ink
-import id.pejalan.ui.theme.PaperHi
 import kotlinx.coroutines.delay
 
-private data class Step(val label: String)
-
 private val Steps = listOf(
-    Step("DETEKSI OBJEK"),
-    Step("KLASIFIKASI KATEGORI"),
-    Step("PENILAIAN SEVERITAS"),
-    Step("MENULIS RASIONAL"),
+    "Deteksi objek",
+    "Klasifikasi kategori",
+    "Penilaian severitas",
+    "Menulis rasional",
 )
 
-/**
- * Midfi-style analyzing overlay. Pure aesthetic — the step progression is
- * driven by a fake timer, not real Gemma callbacks. Cycles ~7s total, which
- * roughly matches typical inference time on a Pixel 7 Pro for this prompt.
- */
 @Composable
 fun AnalyzingOverlay(bitmap: android.graphics.Bitmap? = null) {
     var stepIndex by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
-        // Roughly 1.8s per step. Holds at the last step until classification
-        // actually completes and the parent swaps us out.
         while (stepIndex < Steps.size - 1) {
             delay(1800L)
             stepIndex++
@@ -95,12 +84,11 @@ fun AnalyzingOverlay(bitmap: android.graphics.Bitmap? = null) {
                     .padding(horizontal = 28.dp),
             ) {
                 Text(
-                    "STEP ${(stepIndex + 1).toString().padStart(2, '0')} / 04 — ${Steps[stepIndex].label}",
+                    "Gemma 4 sedang berjalan di perangkat",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.7f),
-                    letterSpacing = 2.sp,
+                    color = Color.White.copy(alpha = 0.75f),
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
@@ -110,18 +98,17 @@ fun AnalyzingOverlay(bitmap: android.graphics.Bitmap? = null) {
                     color = Color.White,
                     fontSize = 32.sp,
                     lineHeight = 36.sp,
-                    letterSpacing = (-0.6).sp,
+                    letterSpacing = (-0.5).sp,
                 )
                 Text(
-                    "Gemma 4 berjalan di perangkat…",
-                    style = MaterialTheme.typography.titleLarge,
+                    "Tahap ${stepIndex + 1} dari ${Steps.size}: ${Steps[stepIndex]}",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = HiVis,
                     fontWeight = FontWeight.SemiBold,
                 )
 
                 Spacer(Modifier.height(20.dp))
 
-                // Progress bar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -138,8 +125,7 @@ fun AnalyzingOverlay(bitmap: android.graphics.Bitmap? = null) {
 
                 Spacer(Modifier.height(18.dp))
 
-                // Step list
-                Steps.forEachIndexed { i, step ->
+                Steps.forEachIndexed { i, label ->
                     val symbol = when {
                         i < stepIndex -> "✓"
                         i == stepIndex -> "→"
@@ -157,56 +143,20 @@ fun AnalyzingOverlay(bitmap: android.graphics.Bitmap? = null) {
                         Text(
                             symbol,
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = color,
                             fontWeight = FontWeight.Bold,
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            step.label,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
+                            label,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = color,
-                            letterSpacing = 1.4.sp,
                             fontWeight = FontWeight.Medium,
                         )
                     }
                 }
             }
-
-            // Top "live" indicator
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 28.dp, top = 56.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                LiveDot()
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "GEMMA 4 · ON-DEVICE",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp,
-                    color = Color.White,
-                    letterSpacing = 1.6.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
         }
     }
-}
-
-@Composable
-private fun LiveDot() {
-    // Animated blink — opacity oscillates fast.
-    val alpha by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = tween(durationMillis = 400, easing = LinearEasing),
-        label = "blink",
-    )
-    Box(
-        modifier = Modifier
-            .size(6.dp)
-            .background(HiVis.copy(alpha = alpha)),
-    )
 }

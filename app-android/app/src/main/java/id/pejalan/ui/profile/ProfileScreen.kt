@@ -226,21 +226,21 @@ private fun BadgesRow(badges: List<Badge>) {
     }
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         badges.forEach { badge ->
-            BadgeChip(badge)
+            BadgeChip(badge, modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun BadgeChip(badge: Badge) {
+private fun BadgeChip(badge: Badge, modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 10.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(

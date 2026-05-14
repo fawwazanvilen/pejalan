@@ -32,13 +32,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -60,7 +60,6 @@ import id.pejalan.ui.theme.Mute
 import id.pejalan.ui.theme.PaperHi
 import id.pejalan.ui.theme.SevRendah
 import id.pejalan.ui.theme.SevSedang
-import id.pejalan.ui.theme.SevSedangTint
 import id.pejalan.ui.theme.SevTinggi
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -77,11 +76,20 @@ fun ResultSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var current by remember(classification) { mutableStateOf(classification.kategori) }
-    val corrected = remember(current, classification) {
-        classification.copy(kategori = current)
+    var currentKategori by remember(classification) { mutableStateOf(classification.kategori) }
+    var currentSeveritas by remember(classification) { mutableStateOf(classification.severitas) }
+    var currentWalkability by remember(classification) { mutableIntStateOf(classification.walkability) }
+
+    val corrected = remember(currentKategori, currentSeveritas, currentWalkability, classification) {
+        classification.copy(
+            kategori = currentKategori,
+            severitas = currentSeveritas,
+            walkability = currentWalkability,
+        )
     }
-    val userCorrected = current != classification.kategori
+    val userCorrected = corrected.kategori != classification.kategori ||
+        corrected.severitas != classification.severitas ||
+        corrected.walkability != classification.walkability
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -96,47 +104,82 @@ fun ResultSheet(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
         ) {
-            PhotoHero(bitmap = bitmap, bbox = classification.bbox, showBbox = corrected.kategori.isViolation)
+            PhotoHero(
+                bitmap = bitmap,
+                bbox = classification.bbox,
+                showBbox = corrected.kategori.isViolation,
+            )
             Spacer(Modifier.height(14.dp))
-
             AuditTimeHeader()
             SharpDivider()
+            Spacer(Modifier.height(18.dp))
+
+            // 01 — Kondisi trotoar (walkability)
+            FieldLabel("01", "Kondisi trotoar")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Seberapa nyaman trotoar ini untuk pejalan?",
+                style = MaterialTheme.typography.bodySmall,
+                color = Mute,
+            )
+            Spacer(Modifier.height(10.dp))
+            WalkabilityBar(
+                score = currentWalkability,
+                interactive = true,
+                onChange = { currentWalkability = it },
+                showLabel = true,
+            )
+
+            Spacer(Modifier.height(20.dp))
+            SharpDivider()
+            Spacer(Modifier.height(18.dp))
+
+            // 02 — Kategori (klasifikasi masalah)
+            FieldLabel("02", "Klasifikasi masalah")
+            Spacer(Modifier.height(8.dp))
+            DisplayHeadline(displayName(corrected.kategori))
             Spacer(Modifier.height(14.dp))
+            Text(
+                "AI menebak kategori ini. Ganti jika menurut Anda berbeda.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Mute,
+            )
+            Spacer(Modifier.height(10.dp))
+            KategoriChips(selected = currentKategori, onSelect = { currentKategori = it })
 
-            // 01 Kategori terdeteksi
-            FieldLabel("01", "Kategori terdeteksi")
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                DisplayHeadline(
-                    displayName(corrected.kategori),
-                    modifier = Modifier.weight(1f),
-                )
-                if (corrected.kategori.isViolation) {
-                    SeverityStamp(corrected.severitas)
-                }
-            }
+            // 03 — Severitas (only when the chosen kategori is a violation)
+            if (corrected.kategori.isViolation) {
+                Spacer(Modifier.height(20.dp))
+                SharpDivider()
+                Spacer(Modifier.height(18.dp))
 
-            Spacer(Modifier.height(16.dp))
-            ConfidenceBlocks(corrected.meter)
-
-            if (corrected.walkability > 0) {
-                Spacer(Modifier.height(16.dp))
-                FieldLabel("·", "Kelayakan pejalan kaki")
+                FieldLabel("03", "Severitas")
                 Spacer(Modifier.height(6.dp))
-                WalkabilityBar(score = corrected.walkability, showLabel = true)
+                Text(
+                    "Seberapa mengganggu pelanggaran ini bagi pejalan.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Mute,
+                )
+                Spacer(Modifier.height(10.dp))
+                SeverityChips(
+                    selected = currentSeveritas,
+                    onSelect = { currentSeveritas = it },
+                )
+                Spacer(Modifier.height(6.dp))
+                ConfidenceBlocks(corrected.meter)
             }
 
-            if (corrected.meter in 1..3) {
+            if (corrected.meter in 1..3 && corrected.kategori.isViolation) {
                 Spacer(Modifier.height(14.dp))
                 AgakRaguBanner()
             }
 
             if (corrected.rasional.isNotBlank()) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(20.dp))
                 SharpDivider()
-                Spacer(Modifier.height(12.dp))
-                FieldLabel("02", "Apa yang dilihat")
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(14.dp))
+                FieldLabel(if (corrected.kategori.isViolation) "04" else "03", "Apa yang dilihat AI")
+                Spacer(Modifier.height(8.dp))
                 Text(
                     corrected.rasional,
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -146,14 +189,7 @@ fun ResultSheet(
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
-            SharpDivider()
-            Spacer(Modifier.height(12.dp))
-            FieldLabel("03", "Bukan ini? Ganti kategori")
-            Spacer(Modifier.height(8.dp))
-            CorrectionChips(selected = current, onSelect = { current = it })
-
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
             if (corrected.kategori.isViolation) {
                 PrimaryButton("Lanjutkan", onClick = { onConfirm(corrected, userCorrected) })
             } else {
@@ -178,7 +214,7 @@ fun ResultSheet(
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Components — the visual identity from the midfi
+// Components
 // ───────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -199,18 +235,13 @@ private fun PhotoHero(bitmap: Bitmap, bbox: BBox, showBbox: Boolean) {
         )
         if (showBbox && isMeaningfulBbox) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val left = bbox.x * size.width
-                val top = bbox.y * size.height
-                val w = bbox.w * size.width
-                val h = bbox.h * size.height
                 drawRect(
                     color = HiVis,
-                    topLeft = Offset(left, top),
-                    size = Size(w, h),
+                    topLeft = Offset(bbox.x * size.width, bbox.y * size.height),
+                    size = Size(bbox.w * size.width, bbox.h * size.height),
                     style = Stroke(width = 3.dp.toPx()),
                 )
             }
-            // Tiny corner label
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -241,12 +272,10 @@ private fun AuditTimeHeader() {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "PJ-BARU",
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
+            "Foto baru",
+            style = MaterialTheme.typography.labelMedium,
             color = Mute,
-            letterSpacing = 1.6.sp,
+            fontWeight = FontWeight.Medium,
         )
         Spacer(Modifier.weight(1f))
         Text(
@@ -255,7 +284,6 @@ private fun AuditTimeHeader() {
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             color = Mute,
-            letterSpacing = 1.2.sp,
         )
     }
 }
@@ -271,13 +299,13 @@ private fun FieldLabel(number: String, text: String) {
             color = Mute,
             letterSpacing = 1.4.sp,
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(10.dp))
         Text(
-            text.uppercase(),
-            style = MaterialTheme.typography.labelSmall.copy(
+            text,
+            style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = FontWeight.SemiBold,
                 color = Mute,
-                letterSpacing = 1.4.sp,
+                letterSpacing = 0.8.sp,
             ),
         )
     }
@@ -288,58 +316,36 @@ private fun DisplayHeadline(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         modifier = modifier,
-        fontSize = 36.sp,
+        fontSize = 34.sp,
         lineHeight = 36.sp,
         fontWeight = FontWeight.ExtraBold,
-        letterSpacing = (-1.2).sp,
+        letterSpacing = (-1.0).sp,
         color = Ink,
     )
-}
-
-@Composable
-private fun SeverityStamp(severity: Severitas) {
-    val color = severityColor(severity)
-    Box(
-        modifier = Modifier
-            .rotate(-2f)
-            .border(width = 2.5.dp, color = color)
-            .padding(horizontal = 12.dp, vertical = 5.dp),
-    ) {
-        Text(
-            severity.label.uppercase(),
-            color = color,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 2.sp,
-        )
-    }
 }
 
 @Composable
 private fun ConfidenceBlocks(meter: Int) {
     val clamped = meter.coerceIn(0, 5)
     val color = confidenceColor(clamped)
-    Column {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             repeat(5) { i ->
                 val filled = i < clamped
                 Box(
                     modifier = Modifier
-                        .size(width = 28.dp, height = 12.dp)
-                        .border(1.5.dp, color)
+                        .size(width = 20.dp, height = 8.dp)
+                        .border(1.dp, color)
                         .background(if (filled) color else Color.Transparent),
                 )
             }
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.width(10.dp))
         Text(
-            confidenceLabel(clamped).uppercase(),
-            fontFamily = FontFamily.Monospace,
-            fontSize = 10.5.sp,
-            fontWeight = FontWeight.Bold,
+            "Keyakinan AI: ${confidenceLabel(clamped)}",
+            style = MaterialTheme.typography.labelSmall,
             color = color,
-            letterSpacing = 1.8.sp,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
@@ -349,13 +355,13 @@ private fun AgakRaguBanner() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SevSedangTint)
+            .background(SevSedang.copy(alpha = 0.14f))
             .border(1.5.dp, SevSedang)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Text(
-            "!",
+            "?",
             color = SevSedang,
             fontWeight = FontWeight.ExtraBold,
             fontFamily = FontFamily.Monospace,
@@ -364,13 +370,13 @@ private fun AgakRaguBanner() {
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "Agak ragu.",
+                "AI agak ragu",
                 color = SevSedang,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "Periksa kategori — Anda bisa memperbaiki di bawah.",
+                "Periksa kategori dan severitas di atas — Anda bisa memperbaiki.",
                 color = Ink,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -380,26 +386,65 @@ private fun AgakRaguBanner() {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CorrectionChips(selected: Kategori, onSelect: (Kategori) -> Unit) {
+private fun KategoriChips(selected: Kategori, onSelect: (Kategori) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Kategori.entries.forEach { k ->
-            val isSelected = k == selected
+            ChoiceChip(
+                label = k.label.lowercase(),
+                selected = k == selected,
+                accent = Ink,
+                onClick = { onSelect(k) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeverityChips(selected: Severitas, onSelect: (Severitas) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Severitas.entries.forEach { sev ->
+            val accent = severityColor(sev)
             Box(
                 modifier = Modifier
-                    .padding(vertical = 3.dp)
-                    .background(if (isSelected) Ink else PaperHi)
-                    .border(1.4.dp, Ink)
-                    .clickable { onSelect(k) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .weight(1f)
+                    .background(if (sev == selected) accent else PaperHi)
+                    .border(1.5.dp, accent)
+                    .clickable { onSelect(sev) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    k.label.lowercase(),
-                    color = if (isSelected) PaperHi else Ink,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    sev.label,
+                    color = if (sev == selected) Color.White else accent,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ChoiceChip(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .padding(vertical = 3.dp)
+            .background(if (selected) accent else PaperHi)
+            .border(1.4.dp, accent)
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Text(
+            label,
+            color = if (selected) PaperHi else accent,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+        )
     }
 }
 
@@ -438,14 +483,14 @@ private fun SharpDivider() {
 // ───────────────────────────────────────────────────────────────────────────
 
 private fun displayName(kategori: Kategori): String = when (kategori) {
-    Kategori.PARKIR_LIAR -> "parkir\nliar."
-    Kategori.TROTOAR_RUSAK -> "trotoar\nrusak."
-    Kategori.HALANGAN_PERMANEN -> "halangan\npermanen."
-    Kategori.UBIN_DIFABEL_BERMASALAH -> "ubin difabel\nbermasalah."
-    Kategori.TROTOAR_ABSEN -> "trotoar\nabsen."
+    Kategori.PARKIR_LIAR -> "parkir liar."
+    Kategori.TROTOAR_RUSAK -> "trotoar rusak."
+    Kategori.HALANGAN_PERMANEN -> "halangan permanen."
+    Kategori.UBIN_DIFABEL_BERMASALAH -> "ubin difabel bermasalah."
+    Kategori.TROTOAR_ABSEN -> "trotoar absen."
     Kategori.DRAINASE -> "drainase."
-    Kategori.NIHIL -> "tidak ada\npelanggaran."
-    Kategori.BUKAN_TROTOAR -> "bukan\ntrotoar."
+    Kategori.NIHIL -> "tidak ada pelanggaran."
+    Kategori.BUKAN_TROTOAR -> "bukan trotoar."
     Kategori.LAINNYA -> "lainnya."
 }
 
@@ -456,10 +501,8 @@ private fun severityColor(s: Severitas): Color = when (s) {
 }
 
 private fun confidenceColor(meter: Int): Color = when (meter) {
-    5 -> SevRendah
-    4 -> SevRendah
-    3 -> SevSedang
-    2 -> SevSedang
+    5, 4 -> SevRendah
+    3, 2 -> SevSedang
     1 -> SevTinggi
     else -> Mute
 }
@@ -477,11 +520,7 @@ private fun confidenceLabel(meter: Int): String = when (meter) {
 internal fun WalkabilityRow(score: Int, modifier: Modifier = Modifier) {
     // Retained for SavedScreen import compatibility.
     Column(modifier = modifier) {
-        Text(
-            "Kelayakan",
-            style = MaterialTheme.typography.labelMedium,
-            color = Mute,
-        )
+        Text("Kondisi trotoar", style = MaterialTheme.typography.labelMedium, color = Mute)
         Spacer(Modifier.size(6.dp))
         WalkabilityBar(score = score, showLabel = true)
     }

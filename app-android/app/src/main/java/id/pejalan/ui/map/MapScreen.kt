@@ -36,6 +36,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.mapbox.geojson.Point
 import com.mapbox.maps.extension.compose.MapboxMap
@@ -54,7 +55,9 @@ import id.pejalan.ml.Severitas
 import id.pejalan.ui.common.WalkabilityBar
 import id.pejalan.ui.theme.Indigo
 import id.pejalan.ui.theme.IndigoTint
+import id.pejalan.ui.theme.Ink
 import id.pejalan.ui.theme.Mute
+import id.pejalan.ui.theme.PaperHi
 import id.pejalan.ui.theme.SevRendah
 import id.pejalan.ui.theme.SevSedang
 import id.pejalan.ui.theme.SevTinggi
@@ -153,8 +156,8 @@ private fun LaporanDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        containerColor = PaperHi,
+        contentColor = Ink,
     ) {
         Column(
             modifier = Modifier
@@ -162,6 +165,44 @@ private fun LaporanDetailSheet(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
         ) {
+            // Audit code header — matches Linimasa card and ResultSheet
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    laporan.id,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Mute,
+                    letterSpacing = 0.8.sp,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    relativeTime(laporan.createdAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Mute,
+                )
+                Spacer(Modifier.weight(1f))
+                if (laporan.kategori.isViolation) {
+                    Box(
+                        modifier = Modifier
+                            .background(severityColor(laporan.severitas))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                    ) {
+                        Text(
+                            laporan.severitas.label,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+            Box(modifier = Modifier.fillMaxWidth().height(1.5.dp).background(Ink))
+            Spacer(Modifier.height(18.dp))
+
             Row(verticalAlignment = Alignment.Top) {
                 DetailThumbnail(
                     photoPath = laporan.photoPath,
@@ -171,20 +212,16 @@ private fun LaporanDetailSheet(
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        laporan.kategori.label,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        displayName(laporan.kategori),
+                        fontSize = 24.sp,
+                        lineHeight = 26.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.5).sp,
+                        color = Ink,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (laporan.kategori.isViolation) {
-                            SeverityChipSmall(laporan.severitas)
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        if (laporan.walkability > 0) {
-                            WalkabilityBar(score = laporan.walkability, compact = true)
-                        }
+                    if (laporan.walkability > 0) {
+                        Spacer(Modifier.height(10.dp))
+                        WalkabilityBar(score = laporan.walkability, showLabel = true)
                     }
                 }
             }
@@ -193,31 +230,25 @@ private fun LaporanDetailSheet(
                 Spacer(Modifier.height(20.dp))
                 Text(
                     laporan.rasional,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        color = Ink,
+                    ),
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "${laporan.id}  ·  ${relativeTime(laporan.createdAt)}",
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.outline,
-            )
-
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(24.dp))
 
             Button(
                 onClick = onOpenDetail,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(2.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = Ink,
+                    contentColor = PaperHi,
                 ),
             ) {
-                Text("Lihat & sunting", style = MaterialTheme.typography.titleMedium)
+                Text("Lihat & sunting", style = MaterialTheme.typography.labelLarge)
             }
             Spacer(Modifier.height(4.dp))
             TextButton(
@@ -226,12 +257,24 @@ private fun LaporanDetailSheet(
             ) {
                 Text(
                     "Tutup",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = Mute,
                     style = MaterialTheme.typography.labelLarge,
                 )
             }
         }
     }
+}
+
+private fun displayName(kategori: id.pejalan.ml.Kategori): String = when (kategori) {
+    id.pejalan.ml.Kategori.PARKIR_LIAR -> "parkir liar."
+    id.pejalan.ml.Kategori.TROTOAR_RUSAK -> "trotoar rusak."
+    id.pejalan.ml.Kategori.HALANGAN_PERMANEN -> "halangan permanen."
+    id.pejalan.ml.Kategori.UBIN_DIFABEL_BERMASALAH -> "ubin difabel bermasalah."
+    id.pejalan.ml.Kategori.TROTOAR_ABSEN -> "trotoar absen."
+    id.pejalan.ml.Kategori.DRAINASE -> "drainase."
+    id.pejalan.ml.Kategori.NIHIL -> "tidak ada pelanggaran."
+    id.pejalan.ml.Kategori.BUKAN_TROTOAR -> "bukan trotoar."
+    id.pejalan.ml.Kategori.LAINNYA -> "lainnya."
 }
 
 @Composable

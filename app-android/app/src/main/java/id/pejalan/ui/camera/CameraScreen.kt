@@ -209,8 +209,10 @@ private fun ViewfinderReticle(modifier: Modifier = Modifier) {
 @Composable
 private fun TopHint(mode: CaptureMode) {
     val (top, sub) = when (mode) {
-        CaptureMode.Teliti -> "Arahkan ke trotoar yang bermasalah." to "JARAK 1–3 METER · CAHAYA CUKUP"
-        CaptureMode.Cepat -> "Bidik cepat, klasifikasi belakangan." to "FOTO LANGSUNG MASUK ANTRIAN"
+        CaptureMode.Teliti -> "Arahkan ke trotoar yang bermasalah" to
+            "Pastikan konteks lengkap dan cahaya cukup"
+        CaptureMode.Cepat -> "Bidik dulu, klasifikasi belakangan" to
+            "Foto langsung masuk ke antrian untuk diproses"
     }
     Column(
         modifier = Modifier
@@ -226,11 +228,8 @@ private fun TopHint(mode: CaptureMode) {
         )
         Text(
             sub,
-            color = HiVis,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.4.sp,
+            color = Color.White.copy(alpha = 0.75f),
+            style = MaterialTheme.typography.bodySmall,
         )
     }
 }
@@ -250,12 +249,10 @@ private fun ModelLoadingPill(modifier: Modifier = Modifier) {
         )
         androidx.compose.foundation.layout.Spacer(Modifier.size(10.dp))
         Text(
-            "GEMMA 4 BELUM SIAP · COBA MODE CEPAT",
+            "Model masih dimuat — coba Mode Cepat dulu",
             color = Color.White,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.4.sp,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
         )
     }
 }
