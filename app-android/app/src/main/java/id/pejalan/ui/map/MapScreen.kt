@@ -51,7 +51,10 @@ import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
 import id.pejalan.data.LaporanStatus
 import id.pejalan.data.SeedData
+import id.pejalan.ml.Kategori
 import id.pejalan.ml.Severitas
+import id.pejalan.ml.isViolation
+import id.pejalan.ml.primary
 import id.pejalan.ui.common.WalkabilityBar
 import id.pejalan.ui.theme.Indigo
 import id.pejalan.ui.theme.IndigoTint
@@ -185,7 +188,7 @@ private fun LaporanDetailSheet(
                     color = Mute,
                 )
                 Spacer(Modifier.weight(1f))
-                if (laporan.kategori.isViolation) {
+                if (laporan.kategori.any { it.isViolation }) {
                     Box(
                         modifier = Modifier
                             .background(severityColor(laporan.severitas))
@@ -207,12 +210,13 @@ private fun LaporanDetailSheet(
                 DetailThumbnail(
                     photoPath = laporan.photoPath,
                     fallbackTint = markerColor(laporan),
-                    label = laporan.kategori.label,
+                    label = laporan.kategori.primary.label,
                 )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
+                    val ordered = Kategori.entries.filter { it in laporan.kategori }
                     Text(
-                        displayName(laporan.kategori),
+                        ordered.joinToString("\n") { displayName(it) },
                         fontSize = 24.sp,
                         lineHeight = 26.sp,
                         fontWeight = FontWeight.ExtraBold,

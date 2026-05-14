@@ -57,6 +57,9 @@ import id.pejalan.ml.BBox
 import id.pejalan.ml.Classification
 import id.pejalan.ml.Kategori
 import id.pejalan.ml.Severitas
+import id.pejalan.ml.isViolation
+import id.pejalan.ml.primary
+import id.pejalan.ml.toggle
 import id.pejalan.ui.common.WalkabilityBar
 import id.pejalan.ui.theme.HiVis
 import id.pejalan.ui.theme.Ink
@@ -88,7 +91,8 @@ fun ResultSheet(
     // BUKAN_TROTOAR and LAINNYA have no sidewalk to rate — zero walkability
     // as soon as the user selects one of those.
     LaunchedEffect(currentKategori) {
-        if (currentKategori == Kategori.BUKAN_TROTOAR || currentKategori == Kategori.LAINNYA) {
+        val primary = currentKategori.primary
+        if (primary == Kategori.BUKAN_TROTOAR || primary == Kategori.LAINNYA) {
             currentWalkability = 0
         }
     }
@@ -106,8 +110,8 @@ fun ResultSheet(
         corrected.walkability != classification.walkability ||
         corrected.rasional != classification.rasional
 
-    val ratingPossible = corrected.kategori != Kategori.BUKAN_TROTOAR &&
-        corrected.kategori != Kategori.LAINNYA
+    val primary = corrected.kategori.primary
+    val ratingPossible = primary != Kategori.BUKAN_TROTOAR && primary != Kategori.LAINNYA
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -125,7 +129,7 @@ fun ResultSheet(
             PhotoHero(
                 bitmap = bitmap,
                 bbox = classification.bbox,
-                showBbox = corrected.kategori.isViolation,
+                showBbox = corrected.kategori.any { it.isViolation },
             )
             Spacer(Modifier.height(14.dp))
             AuditTimeHeader()
@@ -163,23 +167,25 @@ fun ResultSheet(
             // 02 — Klasifikasi masalah
             FieldLabel("02", "Klasifikasi masalah")
             Spacer(Modifier.height(6.dp))
-            SectionPrompt("Apa yang Anda lihat di trotoar ini?")
+            SectionPrompt("Apa yang Anda lihat di trotoar ini? Bisa lebih dari satu.")
             Spacer(Modifier.height(12.dp))
-            DisplayHeadline(displayName(corrected.kategori))
+            DisplayHeadline(displayNameSet(corrected.kategori))
             Spacer(Modifier.height(14.dp))
-            KategoriChips(selected = currentKategori, onSelect = { currentKategori = it })
+            KategoriChips(
+                selected = currentKategori,
+                onSelect = { currentKategori = currentKategori.toggle(it) },
+            )
 
-            // AI's original confidence — keep visible even after the user overrides;
-            // it describes a fact about the original AI guess, not the current selection.
+            // AI's original confidence — keep visible even after the user overrides.
             if (classification.meter > 0) {
                 Spacer(Modifier.height(12.dp))
                 ConfidenceBlocks(
                     meter = classification.meter,
-                    showOriginalNote = userCorrected,
+                    originalKategori = if (currentKategori != classification.kategori) classification.kategori else null,
                 )
             }
 
-            // 03 — Severitas (only when violation)
+            // 03 — Severitas (only when at least one violation is selected)
             if (corrected.kategori.isViolation) {
                 Spacer(Modifier.height(22.dp))
                 SharpDivider()
@@ -402,7 +408,7 @@ private fun DisplayHeadline(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ConfidenceBlocks(meter: Int, showOriginalNote: Boolean = false) {
+private fun ConfidenceBlocks(meter: Int, originalKategori: Set<Kategori>? = null) {
     val clamped = meter.coerceIn(0, 5)
     val color = confidenceColor(clamped)
     Column {
@@ -427,10 +433,10 @@ private fun ConfidenceBlocks(meter: Int, showOriginalNote: Boolean = false) {
                 fontStyle = FontStyle.Italic,
             )
         }
-        if (showOriginalNote) {
+        if (originalKategori != null) {
             Spacer(Modifier.height(2.dp))
             Text(
-                "(tentang tebakan asli AI sebelum perubahan Anda)",
+                "(tebakan asli AI: ${originalKategori.joinToString(", ") { it.label.lowercase() }})",
                 style = MaterialTheme.typography.labelSmall,
                 color = Mute,
                 fontStyle = FontStyle.Italic,
@@ -461,12 +467,12 @@ private fun SelectedDescription(text: String) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun KategoriChips(selected: Kategori, onSelect: (Kategori) -> Unit) {
+private fun KategoriChips(selected: Set<Kategori>, onSelect: (Kategori) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Kategori.entries.forEach { k ->
             ChoiceChip(
                 label = k.label.lowercase(),
-                selected = k == selected,
+                selected = k in selected,
                 accent = Ink,
                 onClick = { onSelect(k) },
             )
@@ -567,6 +573,12 @@ private fun displayName(kategori: Kategori): String = when (kategori) {
     Kategori.NIHIL -> "tidak ada pelanggaran."
     Kategori.BUKAN_TROTOAR -> "bukan trotoar."
     Kategori.LAINNYA -> "lainnya."
+}
+
+/** Renders one or more kategori stacked on separate lines, in enum declaration order. */
+private fun displayNameSet(kategori: Set<Kategori>): String {
+    val ordered = Kategori.entries.filter { it in kategori }
+    return ordered.joinToString("\n") { displayName(it) }
 }
 
 private fun severityColor(s: Severitas): Color = when (s) {

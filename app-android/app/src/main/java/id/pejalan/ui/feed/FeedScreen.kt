@@ -45,6 +45,8 @@ import id.pejalan.data.LaporanStatus
 import id.pejalan.data.SeedData
 import id.pejalan.ml.Kategori
 import id.pejalan.ml.Severitas
+import id.pejalan.ml.isViolation
+import id.pejalan.ml.primary
 import id.pejalan.ui.common.WalkabilityBar
 import id.pejalan.ui.theme.Ink
 import id.pejalan.ui.theme.Mute
@@ -137,7 +139,7 @@ private fun LaporanCard(laporan: Laporan, onClick: () -> Unit) {
             when {
                 laporan.status == LaporanStatus.PENDING -> PendingPill()
                 laporan.status == LaporanStatus.FAILED -> FailedPill()
-                laporan.kategori.isViolation -> SeverityTag(laporan.severitas)
+                laporan.kategori.any { it.isViolation } -> SeverityTag(laporan.severitas)
             }
         }
 
@@ -149,7 +151,7 @@ private fun LaporanCard(laporan: Laporan, onClick: () -> Unit) {
             Thumbnail(
                 photoPath = laporan.photoPath,
                 tintWhenMissing = thumbTint(laporan),
-                label = laporan.kategori.label,
+                label = laporan.kategori.primary.label,
             )
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -177,14 +179,24 @@ private fun LaporanCard(laporan: Laporan, onClick: () -> Unit) {
                         )
                     }
                     LaporanStatus.CLASSIFIED -> {
+                        val ordered = Kategori.entries.filter { it in laporan.kategori }
                         Text(
-                            displayName(laporan.kategori),
+                            ordered.take(2).joinToString("\n") { displayName(it) },
                             fontSize = 20.sp,
                             lineHeight = 22.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = (-0.4).sp,
                             color = Ink,
                         )
+                        if (ordered.size > 2) {
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                "+${ordered.size - 2} lainnya.",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Mute,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
                         if (laporan.walkability > 0) {
                             Spacer(Modifier.height(8.dp))
                             WalkabilityBar(score = laporan.walkability, compact = true)
@@ -303,7 +315,7 @@ private fun displayName(kategori: Kategori): String = when (kategori) {
 }
 
 private fun thumbTint(laporan: Laporan): Color =
-    if (laporan.kategori.isViolation) severityColor(laporan.severitas) else Mute
+    if (laporan.kategori.any { it.isViolation }) severityColor(laporan.severitas) else Mute
 
 private fun severityColor(s: Severitas) = when (s) {
     Severitas.RENDAH -> SevRendah

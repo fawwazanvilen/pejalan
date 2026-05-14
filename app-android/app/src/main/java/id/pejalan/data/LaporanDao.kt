@@ -39,7 +39,7 @@ interface LaporanDao {
         "status = :status WHERE id = :id")
     suspend fun updateClassification(
         id: String,
-        kategori: Kategori,
+        kategori: Set<Kategori>,
         severitas: Severitas,
         keyakinan: Float,
         walkability: Int,
@@ -65,7 +65,7 @@ interface LaporanDao {
     )
     suspend fun updateUserContent(
         id: String,
-        kategori: Kategori,
+        kategori: Set<Kategori>,
         severitas: Severitas,
         walkability: Int,
         rasional: String,

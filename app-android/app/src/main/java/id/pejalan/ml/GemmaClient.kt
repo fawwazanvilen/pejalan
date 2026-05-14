@@ -77,8 +77,9 @@ class GemmaClient(private val context: Context) {
             Log.d(TAG, raw.ifBlank { "<EMPTY>" })
             Log.d(TAG, "==== end raw response ====")
             val parsed = parseClassification(raw)
-            Log.d(TAG, "parsed: kategori=${parsed.kategori}, severitas=${parsed.severitas}, " +
-                "keyakinan=${parsed.keyakinan}, rasional='${parsed.rasional}'")
+            Log.d(TAG, "parsed: kategori=${parsed.kategori.joinToString(",") { it.name }}, " +
+                "severitas=${parsed.severitas}, keyakinan=${parsed.keyakinan}, " +
+                "rasional='${parsed.rasional}'")
             parsed
         } finally {
             runCatching { conversation.close() }
@@ -143,8 +144,22 @@ internal fun parseClassification(raw: String): Classification {
 
     return try {
         val json = JSONObject(raw.substring(start, end + 1))
+
+        // Accept either an array OR a single string for backward compatibility
+        // with older Gemma responses (and existing seed/test fixtures).
+        val kategoriSet: Set<Kategori> = run {
+            val arr = json.optJSONArray("kategori")
+            if (arr != null) {
+                (0 until arr.length())
+                    .map { Kategori.fromString(arr.optString(it)) }
+                    .toSet()
+            } else {
+                setOf(Kategori.fromString(json.optString("kategori")))
+            }
+        }.ifEmpty { setOf(Kategori.LAINNYA) }
+
         Classification(
-            kategori  = Kategori.fromString(json.optString("kategori")),
+            kategori  = kategoriSet,
             severitas = Severitas.fromString(json.optString("severitas")),
             keyakinan = json.optDouble("keyakinan", 0.0).toFloat().coerceIn(0f, 1f),
             walkability = json.optInt("kelayakan_pejalan_kaki", 0).coerceIn(0, 5),

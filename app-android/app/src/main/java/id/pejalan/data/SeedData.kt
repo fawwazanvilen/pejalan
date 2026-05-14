@@ -101,7 +101,7 @@ object SeedData {
         lng = lng,
         accuracyM = 0f,
         photoPath = "",
-        kategori = kategori,
+        kategori = setOf(kategori),
         severitas = severitas,
         keyakinan = keyakinan,
         walkability = walkability,

@@ -43,6 +43,7 @@ import id.pejalan.data.LaporanStatus
 import id.pejalan.ml.Classification
 import id.pejalan.ml.ClassificationQueue
 import id.pejalan.ml.GemmaClient
+import id.pejalan.ml.isViolation
 import id.pejalan.nav.PejalanNav
 import id.pejalan.ui.camera.CameraScreen
 import id.pejalan.ui.camera.CaptureMode

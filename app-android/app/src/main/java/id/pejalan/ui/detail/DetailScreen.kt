@@ -66,6 +66,9 @@ import id.pejalan.data.SeedData
 import id.pejalan.ml.ClassificationQueue
 import id.pejalan.ml.Kategori
 import id.pejalan.ml.Severitas
+import id.pejalan.ml.isViolation
+import id.pejalan.ml.primary
+import id.pejalan.ml.toggle
 import id.pejalan.ui.common.WalkabilityBar
 import id.pejalan.ui.theme.Ink
 import id.pejalan.ui.theme.Mute
@@ -113,7 +116,8 @@ fun DetailScreen(
 
     // BUKAN_TROTOAR / LAINNYA → zero walkability automatically
     LaunchedEffect(kategori) {
-        if (kategori == Kategori.BUKAN_TROTOAR || kategori == Kategori.LAINNYA) {
+        val primary = kategori.primary
+        if (primary == Kategori.BUKAN_TROTOAR || primary == Kategori.LAINNYA) {
             walkability = 0
         }
     }
@@ -125,7 +129,8 @@ fun DetailScreen(
         walkability != current.walkability ||
         rasional != current.rasional
 
-    val ratingPossible = kategori != Kategori.BUKAN_TROTOAR && kategori != Kategori.LAINNYA
+    val primaryKategori = kategori.primary
+    val ratingPossible = primaryKategori != Kategori.BUKAN_TROTOAR && primaryKategori != Kategori.LAINNYA
 
     Surface(modifier = Modifier.fillMaxSize(), color = PaperHi) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -211,12 +216,15 @@ fun DetailScreen(
                 // 02 — Klasifikasi
                 FieldLabel("02", "Klasifikasi masalah")
                 Spacer(Modifier.height(6.dp))
-                SectionPrompt("Apa yang Anda lihat di trotoar ini?")
+                SectionPrompt("Apa yang Anda lihat di trotoar ini? Bisa lebih dari satu.")
                 Spacer(Modifier.height(12.dp))
-                DisplayHeadline(displayName(kategori))
+                DisplayHeadline(displayNameSet(kategori))
                 Spacer(Modifier.height(14.dp))
                 if (!isSeed) {
-                    KategoriChips(selected = kategori, onSelect = { kategori = it })
+                    KategoriChips(
+                        selected = kategori,
+                        onSelect = { kategori = kategori.toggle(it) },
+                    )
                 }
 
                 if (kategori.isViolation) {
@@ -487,12 +495,12 @@ private fun DisplayHeadline(text: String) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun KategoriChips(selected: Kategori, onSelect: (Kategori) -> Unit) {
+private fun KategoriChips(selected: Set<Kategori>, onSelect: (Kategori) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Kategori.entries.forEach { k ->
             ChoiceChip(
                 label = k.label.lowercase(),
-                selected = k == selected,
+                selected = k in selected,
                 accent = Ink,
                 onClick = { onSelect(k) },
             )
@@ -568,6 +576,11 @@ private fun displayName(kategori: Kategori): String = when (kategori) {
     Kategori.NIHIL -> "tidak ada pelanggaran."
     Kategori.BUKAN_TROTOAR -> "bukan trotoar."
     Kategori.LAINNYA -> "lainnya."
+}
+
+private fun displayNameSet(kategori: Set<Kategori>): String {
+    val ordered = Kategori.entries.filter { it in kategori }
+    return ordered.joinToString("\n") { displayName(it) }
 }
 
 private fun severityColor(s: Severitas): Color = when (s) {

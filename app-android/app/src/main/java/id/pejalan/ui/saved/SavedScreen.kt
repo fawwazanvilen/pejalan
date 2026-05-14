@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import id.pejalan.data.Laporan
+import id.pejalan.ml.Kategori
+import id.pejalan.ml.isViolation
 import id.pejalan.ui.result.WalkabilityRow
 import id.pejalan.ui.theme.SevRendah
 import java.io.File
@@ -75,10 +77,12 @@ fun SavedScreen(
 
             Spacer(Modifier.height(24.dp))
 
+            val orderedLabels = Kategori.entries.filter { it in laporan.kategori }.map { it.label }
+            val kategoriLine = orderedLabels.joinToString(", ")
             Text(
-                if (laporan.kategori.isViolation)
-                    "${laporan.kategori.label} · ${laporan.severitas.label}"
-                else laporan.kategori.label,
+                if (laporan.kategori.any { it.isViolation })
+                    "$kategoriLine · ${laporan.severitas.label}"
+                else kategoriLine,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
             )

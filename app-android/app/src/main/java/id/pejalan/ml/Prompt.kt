@@ -2,7 +2,9 @@ package id.pejalan.ml
 
 const val PROMPT = """Klasifikasi foto ini sebagai alat audit warga untuk trotoar di Jakarta.
 
-Pertama tentukan kategori. Pilih SATU dari daftar:
+Sebuah trotoar bisa memiliki BEBERAPA pelanggaran sekaligus. Pilih SATU ATAU LEBIH
+kategori dari daftar berikut. Balas sebagai array JSON.
+
 - BUKAN_TROTOAR           (foto tidak menampilkan trotoar atau jalur pejalan kaki sama sekali)
 - NIHIL                   (trotoar terlihat baik, tidak ada pelanggaran terlihat)
 - PARKIR_LIAR             (kendaraan di atas trotoar)
@@ -12,11 +14,14 @@ Pertama tentukan kategori. Pilih SATU dari daftar:
 - TROTOAR_ABSEN           (seharusnya ada trotoar tetapi tidak ada)
 - DRAINASE                (got terbuka, manhole hilang)
 
-Nilai severitas (hanya jika kategori adalah pelanggaran):
+BUKAN_TROTOAR dan NIHIL bersifat eksklusif — tidak boleh digabungkan dengan
+kategori lain.
+
+Nilai severitas (hanya jika ada pelanggaran):
 - rendah   — tidak menghalangi jalan
 - sedang   — pejalan harus menghindar
 - tinggi   — pejalan terpaksa turun ke jalan raya
-Jika kategori BUKAN_TROTOAR atau NIHIL, gunakan "rendah".
+Jika kategori adalah BUKAN_TROTOAR atau NIHIL, gunakan "rendah".
 
 Nilai juga "kelayakan_pejalan_kaki" sebagai skor kualitas trotoar 1–5:
 - 1: Tidak dapat dilalui pejalan kaki sama sekali
@@ -28,7 +33,7 @@ Jika kategori BUKAN_TROTOAR, gunakan 0 (tidak berlaku).
 
 Balas JSON saja, tanpa pembuka, tanpa markdown, tanpa code fence:
 {
-  "kategori": "PARKIR_LIAR",
+  "kategori": ["PARKIR_LIAR", "TROTOAR_RUSAK"],
   "severitas": "tinggi",
   "keyakinan": 0.87,
   "kelayakan_pejalan_kaki": 2,

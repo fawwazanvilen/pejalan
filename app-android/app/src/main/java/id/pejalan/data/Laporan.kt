@@ -13,7 +13,7 @@ data class Laporan(
     val lng: Double,
     val accuracyM: Float,
     val photoPath: String,
-    val kategori: Kategori,
+    val kategori: Set<Kategori>,
     val severitas: Severitas,
     val keyakinan: Float,
     val walkability: Int,

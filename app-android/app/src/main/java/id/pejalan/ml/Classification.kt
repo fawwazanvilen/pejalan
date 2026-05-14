@@ -17,6 +17,30 @@ enum class Kategori(val label: String, val isViolation: Boolean) {
     }
 }
 
+/** True if any kategori in the set is a violation. */
+val Set<Kategori>.isViolation: Boolean
+    get() = any { it.isViolation }
+
+/** The most "representative" kategori for single-display contexts (markers, list rows).
+ *  Uses enum declaration order, so PARKIR_LIAR wins over TROTOAR_RUSAK, etc. */
+val Set<Kategori>.primary: Kategori
+    get() = Kategori.entries.firstOrNull { it in this } ?: Kategori.LAINNYA
+
+/** Toggle a kategori in the set with the multi-select rules:
+ *  - Tapping a non-violation (NIHIL / BUKAN_TROTOAR / LAINNYA) clears everything else.
+ *  - Tapping a violation while the set is in a non-violation state replaces with just the new pick.
+ *  - Tapping an already-selected violation removes it (but keeps at least one element).
+ *  - Tapping a new violation adds it to the set. */
+fun Set<Kategori>.toggle(tap: Kategori): Set<Kategori> {
+    val isCurrentlyNonViolation = any { !it.isViolation }
+    return when {
+        !tap.isViolation -> setOf(tap)
+        isCurrentlyNonViolation -> setOf(tap)
+        tap in this -> (this - tap).ifEmpty { setOf(Kategori.LAINNYA) }
+        else -> this + tap
+    }
+}
+
 enum class Severitas(val label: String) {
     RENDAH("Rendah"),
     SEDANG("Sedang"),
@@ -35,19 +59,18 @@ data class BBox(val x: Float, val y: Float, val w: Float, val h: Float) {
 }
 
 data class Classification(
-    val kategori: Kategori,
+    val kategori: Set<Kategori>,
     val severitas: Severitas,
     val keyakinan: Float,
-    val walkability: Int,           // 1..5, or 0 when not applicable
+    val walkability: Int,
     val rasional: String,
     val bbox: BBox,
 ) {
-    // Maps keyakinan 0..1 to a 1..5 meter, per HANDOFF §2
     val meter: Int get() = ((keyakinan * 5).toInt() + 1).coerceIn(1, 5)
 
     companion object {
         val Fallback = Classification(
-            kategori = Kategori.LAINNYA,
+            kategori = setOf(Kategori.LAINNYA),
             severitas = Severitas.RENDAH,
             keyakinan = 0f,
             walkability = 0,
