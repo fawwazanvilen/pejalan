@@ -1,6 +1,8 @@
 package id.pejalan.ui.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,7 +33,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import id.pejalan.PejalanApplication
 import id.pejalan.data.LaporanDb
+import id.pejalan.ml.AiMode
 import id.pejalan.ui.theme.Indigo
 import id.pejalan.ui.theme.IndigoTint
 import id.pejalan.ui.theme.SevRendah
@@ -40,10 +44,11 @@ import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(db: LaporanDb) {
+fun ProfileScreen(app: PejalanApplication, db: LaporanDb) {
     val total by db.laporanDao().observeTotal().collectAsState(initial = 0)
     val today by db.laporanDao().observeCountSince(startOfToday()).collectAsState(initial = 0)
     val nihil by db.laporanDao().observeNihilCount().collectAsState(initial = 0)
+    val mode by app.mode.collectAsState()
 
     val badges = computeBadges(total = total, nihil = nihil)
 
@@ -76,6 +81,13 @@ fun ProfileScreen(db: LaporanDb) {
 
                 Spacer(Modifier.height(28.dp))
                 AdvocacyCard()
+
+                Spacer(Modifier.height(28.dp))
+                AiModeSection(
+                    current = mode,
+                    cloudAvailable = app.cloudAvailable,
+                    onSelect = { app.setMode(it) },
+                )
 
                 Spacer(Modifier.height(28.dp))
                 Text(
@@ -264,6 +276,103 @@ private fun BadgeChip(badge: Badge, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun AiModeSection(
+    current: AiMode,
+    cloudAvailable: Boolean,
+    onSelect: (AiMode) -> Unit,
+) {
+    Text(
+        "Mesin AI",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground,
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        "Pilih dari mana klasifikasi foto dijalankan.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(Modifier.height(12.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ModeRow(
+            mode = AiMode.Lokal,
+            selected = current == AiMode.Lokal,
+            enabled = true,
+            onClick = { onSelect(AiMode.Lokal) },
+        )
+        ModeRow(
+            mode = AiMode.Cloud,
+            selected = current == AiMode.Cloud,
+            enabled = cloudAvailable,
+            onClick = { if (cloudAvailable) onSelect(AiMode.Cloud) },
+        )
+    }
+    if (!cloudAvailable) {
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "GEMINI_API_KEY belum diatur di gradle.properties.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun ModeRow(
+    mode: AiMode,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val borderColor = if (selected) Indigo else MaterialTheme.colorScheme.outlineVariant
+    val borderWidth = if (selected) 1.5.dp else 1.dp
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(borderWidth, borderColor, RoundedCornerShape(12.dp))
+            .background(if (selected) IndigoTint else MaterialTheme.colorScheme.surface)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(18.dp)
+                .clip(CircleShape)
+                .background(if (selected) Indigo else MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(Color.White),
+                )
+            }
+        }
+        Spacer(Modifier.size(14.dp))
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                mode.label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (enabled) MaterialTheme.colorScheme.onBackground
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                mode.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

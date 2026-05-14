@@ -25,9 +25,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import id.pejalan.PejalanApplication
 import id.pejalan.data.LaporanDb
 import id.pejalan.ml.ClassificationQueue
-import id.pejalan.ml.GemmaClient
 import id.pejalan.ui.detail.DetailScreen
 import id.pejalan.ui.feed.FeedScreen
 import id.pejalan.ui.map.MapScreen
@@ -44,7 +44,7 @@ private val Tabs = listOf(
 
 @Composable
 fun PejalanNav(
-    gemma: GemmaClient,
+    app: PejalanApplication,
     db: LaporanDb,
     queue: ClassificationQueue,
     captureRoute: @Composable () -> Unit,
@@ -105,7 +105,7 @@ fun PejalanNav(
                     onOpenDetail = { id -> navController.navigate("detail/$id") },
                 )
             }
-            composable("profile") { ProfileScreen(db) }
+            composable("profile") { ProfileScreen(app = app, db = db) }
             composable(
                 "detail/{id}",
                 arguments = listOf(navArgument("id") { type = NavType.StringType }),

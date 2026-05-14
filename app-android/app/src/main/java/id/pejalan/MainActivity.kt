@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,7 +43,6 @@ import id.pejalan.data.LaporanDb
 import id.pejalan.data.LaporanStatus
 import id.pejalan.ml.Classification
 import id.pejalan.ml.ClassificationQueue
-import id.pejalan.ml.GemmaClient
 import id.pejalan.ml.isViolation
 import id.pejalan.nav.PejalanNav
 import id.pejalan.ui.camera.CameraScreen
@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
         val app = pejalanApp
         setContent {
             PejalanTheme {
-                PejalanApp(app.gemma, app.db, app.queue)
+                PejalanApp(app)
             }
         }
     }
@@ -87,26 +87,39 @@ sealed interface InitState {
 }
 
 @Composable
-private fun PejalanApp(gemma: GemmaClient, db: LaporanDb, queue: ClassificationQueue) {
+private fun PejalanApp(app: PejalanApplication) {
+    val gemma = app.gemma
+    val db = app.db
+    val queue = app.queue
+    val mode by app.mode.collectAsState()
+
     var initState by remember { mutableStateOf<InitState>(InitState.Loading) }
 
+    // Always start the queue — it picks up whichever Classifier is active when it drains.
+    // Gemma init is best-effort; failure here only blocks Lokal mode (handled in CaptureRoute).
     LaunchedEffect(Unit) {
+        queue.start()
         initState = try {
             gemma.initialize()
-            queue.start()
             InitState.Ready
         } catch (e: Exception) {
             InitState.Error(e.message ?: e::class.simpleName ?: "Unknown error")
         }
     }
 
-    // Render the full nav immediately; only the Capture tab needs Gemma.
-    // Linimasa / Peta / Profil work right away.
     PejalanNav(
-        gemma = gemma,
+        app = app,
         db = db,
         queue = queue,
-        captureRoute = { CaptureRoute(gemma, db, queue, initState) },
+        captureRoute = {
+            CaptureRoute(
+                app = app,
+                db = db,
+                queue = queue,
+                initState = initState,
+                aiMode = mode,
+            )
+        },
     )
 }
 
@@ -126,17 +139,19 @@ private sealed interface CaptureState {
 
 @Composable
 private fun CaptureRoute(
-    gemma: GemmaClient,
+    app: PejalanApplication,
     db: LaporanDb,
     queue: ClassificationQueue,
     initState: InitState,
+    aiMode: id.pejalan.ml.AiMode,
 ) {
-    // Errors still get a dedicated splash since the model genuinely doesn't work.
-    if (initState is InitState.Error) {
+    // In Cloud mode, Gemma init failures don't block us — Gemini is the active backend.
+    if (initState is InitState.Error && aiMode == id.pejalan.ml.AiMode.Lokal) {
         CaptureSplash(message = initState.message, isError = true)
         return
     }
-    val gemmaReady = initState is InitState.Ready
+    // Shutter is gated only when Lokal mode is selected AND Gemma isn't ready yet.
+    val classifierReady = aiMode == id.pejalan.ml.AiMode.Cloud || initState is InitState.Ready
 
     var state: CaptureState by remember { mutableStateOf(CaptureState.Camera) }
     var mode by remember { mutableStateOf(CaptureMode.Teliti) }
@@ -230,7 +245,7 @@ private fun CaptureRoute(
         CaptureState.Camera -> CameraScreen(
             mode = mode,
             onModeChange = { mode = it },
-            gemmaReady = gemmaReady,
+            gemmaReady = classifierReady,
             onShutterBlocked = {
                 Toast.makeText(
                     context,
@@ -266,7 +281,7 @@ private fun CaptureRoute(
                         state = CaptureState.Analyzing(s.bitmap)
                         scope.launch {
                             val classificationJob = async {
-                                try { gemma.classify(s.bitmap) } catch (_: Exception) { Classification.Fallback }
+                                try { app.activeClassifier.classify(s.bitmap) } catch (_: Exception) { Classification.Fallback }
                             }
                             val locationJob = async {
                                 if (hasLocationPermission(context)) fetchLocation(fusedClient) else null

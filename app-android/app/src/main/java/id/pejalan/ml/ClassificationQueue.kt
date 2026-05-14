@@ -12,15 +12,15 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 
 /**
- * In-app background queue that drains PENDING laporan from Room, classifies their photos
- * with Gemma, and updates the row in place.
+ * In-app background queue that drains PENDING laporan from Room, classifies their photos,
+ * and updates the row in place.
  *
- * Started once after [GemmaClient.initialize] succeeds. Subsequent enqueues just signal
- * the loop to drain again (it processes everything currently pending each wake-up).
+ * Takes a *provider* function instead of a Classifier so toggling AI mode (Lokal ↔ Cloud)
+ * is picked up on the next call without restarting the queue.
  */
 class ClassificationQueue(
     private val db: LaporanDb,
-    private val gemma: GemmaClient,
+    private val classifierProvider: () -> Classifier,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val wakeUp = MutableSharedFlow<Unit>(extraBufferCapacity = 32)
@@ -50,7 +50,7 @@ class ClassificationQueue(
             try {
                 val bitmap = BitmapFactory.decodeFile(pending.photoPath)
                     ?: error("Could not decode photo at ${pending.photoPath}")
-                val classification = gemma.classify(bitmap)
+                val classification = classifierProvider().classify(bitmap)
                 bitmap.recycle()
                 dao.updateClassification(
                     id = pending.id,

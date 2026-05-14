@@ -24,14 +24,14 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-class GemmaClient(private val context: Context) {
+class GemmaClient(private val context: Context) : Classifier {
 
     @Volatile private var engine: Engine? = null
     private val classifyMutex = Mutex()
 
     val modelExists: Boolean get() = File(MODEL_PATH).exists()
 
-    suspend fun initialize() = withContext(Dispatchers.IO) {
+    override suspend fun initialize() = withContext(Dispatchers.IO) {
         if (engine != null) return@withContext
         check(modelExists) {
             "Model file not found at $MODEL_PATH. Run: adb push gemma-4-E2B-it.litertlm $MODEL_PATH"
@@ -55,7 +55,7 @@ class GemmaClient(private val context: Context) {
         engine = newEngine
     }
 
-    suspend fun classify(bitmap: Bitmap): Classification = classifyMutex.withLock {
+    override suspend fun classify(bitmap: Bitmap): Classification = classifyMutex.withLock {
         classifyLocked(bitmap)
     }
 
@@ -120,7 +120,7 @@ class GemmaClient(private val context: Context) {
         cont.invokeOnCancellation { runCatching { conversation.cancelProcess() } }
     }
 
-    fun close() {
+    override fun close() {
         engine?.close()
         engine = null
     }

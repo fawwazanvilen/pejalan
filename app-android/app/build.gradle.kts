@@ -49,6 +49,11 @@ android {
             "MAPBOX_ACCESS_TOKEN",
             "\"${project.findProperty("MAPBOX_ACCESS_TOKEN") ?: ""}\"",
         )
+        buildConfigField(
+            "String",
+            "GEMINI_API_KEY",
+            "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\"",
+        )
     }
     packaging {
         resources {
@@ -89,6 +94,8 @@ dependencies {
 
     implementation(libs.mapbox.maps.android)
     implementation(libs.mapbox.maps.compose)
+
+    implementation(libs.google.generativeai)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
