@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private sealed interface InitState {
+sealed interface InitState {
     object Loading : InitState
     object Ready : InitState
     data class Error(val message: String) : InitState
@@ -99,29 +99,24 @@ private fun PejalanApp(gemma: GemmaClient, db: LaporanDb, queue: ClassificationQ
         }
     }
 
-    when (val s = initState) {
-        InitState.Loading -> SplashScreen(message = "Memuat model Gemma…")
-        is InitState.Error -> SplashScreen(message = s.message, isError = true)
-        InitState.Ready -> PejalanNav(
-            gemma = gemma,
-            db = db,
-            queue = queue,
-            captureRoute = { CaptureRoute(gemma, db, queue) },
-        )
-    }
+    // Render the full nav immediately; only the Capture tab needs Gemma.
+    // Linimasa / Peta / Profil work right away.
+    PejalanNav(
+        gemma = gemma,
+        db = db,
+        queue = queue,
+        captureRoute = { CaptureRoute(gemma, db, queue, initState) },
+    )
 }
 
 private sealed interface CaptureState {
     object Camera : CaptureState
-    // Mode Teliti only
     data class Analyzing(val bitmap: Bitmap) : CaptureState
     data class Result(val bitmap: Bitmap, val classification: Classification, val location: Location?) : CaptureState
-    // Mode Cepat only
     data class ConfirmPhoto(val bitmap: Bitmap) : CaptureState
-    // Shared
     data class Saving(
         val bitmap: Bitmap,
-        val classification: Classification?, // null = Cepat (save as PENDING)
+        val classification: Classification?,
         val userCorrected: Boolean,
         val phase: SavingPhase,
     ) : CaptureState
@@ -129,7 +124,19 @@ private sealed interface CaptureState {
 }
 
 @Composable
-private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb, queue: ClassificationQueue) {
+private fun CaptureRoute(
+    gemma: GemmaClient,
+    db: LaporanDb,
+    queue: ClassificationQueue,
+    initState: InitState,
+) {
+    // Errors still get a dedicated splash since the model genuinely doesn't work.
+    if (initState is InitState.Error) {
+        CaptureSplash(message = initState.message, isError = true)
+        return
+    }
+    val gemmaReady = initState is InitState.Ready
+
     var state: CaptureState by remember { mutableStateOf(CaptureState.Camera) }
     var mode by remember { mutableStateOf(CaptureMode.Teliti) }
     val scope = rememberCoroutineScope()
@@ -153,7 +160,6 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb, queue: Classificatio
         }
     }
 
-    // Pro-actively request location permission as soon as the Camera screen is shown.
     LaunchedEffect(state is CaptureState.Camera) {
         if (state is CaptureState.Camera && !hasLocationPermission(context)) {
             permLauncher.launch(
@@ -223,24 +229,32 @@ private fun CaptureRoute(gemma: GemmaClient, db: LaporanDb, queue: Classificatio
         CaptureState.Camera -> CameraScreen(
             mode = mode,
             onModeChange = { mode = it },
+            gemmaReady = gemmaReady,
+            onShutterBlocked = {
+                Toast.makeText(
+                    context,
+                    "Model masih dimuat. Coba Mode Cepat agar bisa langsung tersimpan.",
+                    Toast.LENGTH_LONG,
+                ).show()
+            },
             onCapture = { bitmap ->
-                // Both modes go through the confirmation overlay first.
                 state = CaptureState.ConfirmPhoto(bitmap)
             },
         )
-        is CaptureState.Analyzing -> AnalyzingOverlay()
+        is CaptureState.Analyzing -> AnalyzingOverlay(bitmap = s.bitmap)
         is CaptureState.Result -> ResultSheet(
+            bitmap = s.bitmap,
             classification = s.classification,
             onDismiss = { state = CaptureState.Camera },
-            onConfirm = {
-                if (s.classification.kategori.isViolation) {
-                    saveOrPromptForLocation(s.bitmap, s.classification, s.location, false)
+            onConfirm = { corrected, userCorrected ->
+                if (corrected.kategori.isViolation) {
+                    saveOrPromptForLocation(s.bitmap, corrected, s.location, userCorrected)
                 } else {
                     state = CaptureState.Camera
                 }
             },
-            onSaveAnyway = {
-                saveOrPromptForLocation(s.bitmap, s.classification, s.location, true)
+            onSaveAnyway = { corrected, userCorrected ->
+                saveOrPromptForLocation(s.bitmap, corrected, s.location, userCorrected)
             },
         )
         is CaptureState.ConfirmPhoto -> ConfirmPhotoOverlay(
@@ -342,7 +356,7 @@ private suspend fun saveLaporan(
     context: Context,
     db: LaporanDb,
     bitmap: Bitmap,
-    classification: Classification?, // null = pending (Mode Cepat)
+    classification: Classification?,
     userCorrected: Boolean,
     location: Location,
     status: LaporanStatus,
@@ -397,7 +411,7 @@ private fun startOfToday(): Long {
 }
 
 @Composable
-private fun SplashScreen(message: String, isError: Boolean = false) {
+private fun CaptureSplash(message: String, isError: Boolean = false) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
@@ -417,6 +431,14 @@ private fun SplashScreen(message: String, isError: Boolean = false) {
                         else MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = 24.dp),
             )
+            if (!isError) {
+                Text(
+                    "Tab lain (Linimasa, Peta, Profil) sudah bisa dibuka.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
         }
     }
 }
