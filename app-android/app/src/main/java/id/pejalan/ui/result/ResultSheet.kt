@@ -436,7 +436,7 @@ private fun ConfidenceBlocks(meter: Int, originalKategori: Set<Kategori>? = null
         if (originalKategori != null) {
             Spacer(Modifier.height(2.dp))
             Text(
-                "(tebakan asli AI: ${originalKategori.joinToString(", ") { it.label.lowercase() }})",
+                "(klasifikasi awal AI: ${originalKategori.joinToString(", ") { it.label.lowercase() }})",
                 style = MaterialTheme.typography.labelSmall,
                 color = Mute,
                 fontStyle = FontStyle.Italic,

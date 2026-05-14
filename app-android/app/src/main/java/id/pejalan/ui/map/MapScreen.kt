@@ -1,5 +1,9 @@
 package id.pejalan.ui.map
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import android.location.Location
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,19 +17,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,12 +43,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.extension.compose.annotation.generated.CircleAnnotationGroup
@@ -47,6 +63,12 @@ import com.mapbox.maps.plugin.annotation.AnnotationConfig
 import com.mapbox.maps.plugin.annotation.AnnotationSourceOptions
 import com.mapbox.maps.plugin.annotation.ClusterOptions
 import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationOptions
+import com.mapbox.maps.plugin.locationcomponent.location
+import kotlin.coroutines.resume
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
 import id.pejalan.data.LaporanStatus
@@ -69,6 +91,8 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(db: LaporanDb, onOpenDetail: (String) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val real by db.laporanDao().observeAll().collectAsState(initial = emptyList())
     val seed = remember { SeedData.entries() }
     val markers = remember(real) {
@@ -77,12 +101,37 @@ fun MapScreen(db: LaporanDb, onOpenDetail: (String) -> Unit) {
 
     var selected: Laporan? by remember { mutableStateOf(null) }
 
+    // Initial camera at Jakarta center. If we have location permission, fly to user
+    // shortly after the map mounts; otherwise stay at Jakarta as a sensible default.
     val viewportState = rememberMapViewportState {
         setCameraOptions {
             zoom(11.5)
             center(Point.fromLngLat(106.8456, -6.2088))
             pitch(0.0)
             bearing(0.0)
+        }
+    }
+
+    val fusedClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val hasLocPerm = remember {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
+    LaunchedEffect(hasLocPerm) {
+        if (hasLocPerm) {
+            delay(400L) // let the map render the initial Jakarta state first
+            val loc = fetchLastLocation(fusedClient)
+            if (loc != null) {
+                viewportState.flyTo(
+                    CameraOptions.Builder()
+                        .center(Point.fromLngLat(loc.longitude, loc.latitude))
+                        .zoom(15.5)
+                        .build()
+                )
+            }
         }
     }
 
@@ -97,10 +146,21 @@ fun MapScreen(db: LaporanDb, onOpenDetail: (String) -> Unit) {
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+
     MapboxMap(
         modifier = Modifier.fillMaxSize(),
         mapViewportState = viewportState,
     ) {
+        if (hasLocPerm) {
+            MapEffect(Unit) { mapView ->
+                mapView.location.updateSettings {
+                    enabled = true
+                    pulsingEnabled = true
+                }
+            }
+        }
+
         CircleAnnotationGroup(
             annotations = annotations,
             annotationConfig = AnnotationConfig(
@@ -134,6 +194,34 @@ fun MapScreen(db: LaporanDb, onOpenDetail: (String) -> Unit) {
         }
     }
 
+        if (hasLocPerm) {
+            FloatingActionButton(
+                onClick = {
+                    scope.launch {
+                        val loc = fetchLastLocation(fusedClient) ?: return@launch
+                        viewportState.flyTo(
+                            CameraOptions.Builder()
+                                .center(Point.fromLngLat(loc.longitude, loc.latitude))
+                                .zoom(15.5)
+                                .build()
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 16.dp),
+                containerColor = PaperHi,
+                contentColor = Ink,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MyLocation,
+                    contentDescription = "Pusatkan ke lokasi saya",
+                )
+            }
+        }
+
+    } // close Box
+
     val current = selected
     if (current != null) {
         LaporanDetailSheet(
@@ -146,6 +234,16 @@ fun MapScreen(db: LaporanDb, onOpenDetail: (String) -> Unit) {
         )
     }
 }
+
+@SuppressLint("MissingPermission")
+private suspend fun fetchLastLocation(client: FusedLocationProviderClient): Location? =
+    withTimeoutOrNull(3000L) {
+        suspendCancellableCoroutine<Location?> { cont ->
+            client.lastLocation
+                .addOnSuccessListener { if (cont.isActive) cont.resume(it) }
+                .addOnFailureListener { _ -> if (cont.isActive) cont.resume(null) }
+        }
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
