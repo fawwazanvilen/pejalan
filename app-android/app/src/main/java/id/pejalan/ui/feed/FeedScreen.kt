@@ -312,6 +312,9 @@ private fun LaporanCard(laporan: Laporan, onClick: () -> Unit) {
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 when (laporan.status) {
+                    // Drafts are filtered out of observeAll() and rendered by DraftCard,
+                    // not LaporanCard. Branch present only for compiler exhaustiveness.
+                    LaporanStatus.DRAFT -> Unit
                     LaporanStatus.PENDING -> {
                         Text(
                             "Menunggu klasifikasi…",
