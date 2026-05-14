@@ -213,7 +213,7 @@ fun DetailScreen(
                 )
 
                 Spacer(Modifier.height(20.dp))
-                Label("Rasional")
+                LabelItalic("rationale")
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = rasional,
@@ -353,6 +353,17 @@ private fun Label(text: String) {
         text,
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground,
+    )
+}
+
+@Composable
+private fun LabelItalic(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
         color = MaterialTheme.colorScheme.onBackground,
     )
 }

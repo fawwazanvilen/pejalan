@@ -1,6 +1,7 @@
 package id.pejalan.ui.common
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,9 +63,9 @@ fun WalkabilityBar(
     showLabel: Boolean = !compact,
 ) {
     val clamped = score.coerceIn(0, 5)
-    val segWidth: Dp = if (compact) 14.dp else 28.dp
-    val segHeight: Dp = if (compact) 4.dp else 8.dp
-    val gap: Dp = if (compact) 2.dp else 4.dp
+    val segWidth: Dp = if (compact) 14.dp else 56.dp
+    val segHeight: Dp = if (compact) 4.dp else 32.dp
+    val gap: Dp = if (compact) 2.dp else 6.dp
     val fillColor = if (clamped == 0) Mute else walkabilityColor(clamped)
 
     Column(modifier = modifier) {
@@ -73,18 +74,42 @@ fun WalkabilityBar(
                 val filled = i < clamped
                 val segModifier = Modifier
                     .size(width = segWidth, height = segHeight)
-                    .clip(RoundedCornerShape(3.dp))
+                    .clip(RoundedCornerShape(if (compact) 3.dp else 2.dp))
                     .background(
                         if (filled) fillColor
                         else MaterialTheme.colorScheme.outlineVariant
                     )
+                    .let { base ->
+                        if (interactive && !compact) {
+                            base.then(
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = if (filled) fillColor
+                                            else MaterialTheme.colorScheme.outline,
+                                )
+                            )
+                        } else base
+                    }
                     .let {
                         if (interactive) it.clickable {
                             val nextScore = i + 1
                             onChange(if (clamped == nextScore) 0 else nextScore)
                         } else it
                     }
-                Box(modifier = segModifier)
+                Box(
+                    modifier = segModifier,
+                    contentAlignment = androidx.compose.ui.Alignment.Center,
+                ) {
+                    if (interactive && !compact) {
+                        Text(
+                            (i + 1).toString(),
+                            color = if (filled) androidx.compose.ui.graphics.Color.White
+                                    else MaterialTheme.colorScheme.outline,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
             }
         }
         if (showLabel) {

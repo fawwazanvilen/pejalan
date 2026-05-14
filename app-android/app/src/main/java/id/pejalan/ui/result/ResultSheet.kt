@@ -27,10 +27,13 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +49,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,17 +83,31 @@ fun ResultSheet(
     var currentKategori by remember(classification) { mutableStateOf(classification.kategori) }
     var currentSeveritas by remember(classification) { mutableStateOf(classification.severitas) }
     var currentWalkability by remember(classification) { mutableIntStateOf(classification.walkability) }
+    var currentRasional by remember(classification) { mutableStateOf(classification.rasional) }
 
-    val corrected = remember(currentKategori, currentSeveritas, currentWalkability, classification) {
+    // BUKAN_TROTOAR and LAINNYA have no sidewalk to rate — zero walkability
+    // as soon as the user selects one of those.
+    LaunchedEffect(currentKategori) {
+        if (currentKategori == Kategori.BUKAN_TROTOAR || currentKategori == Kategori.LAINNYA) {
+            currentWalkability = 0
+        }
+    }
+
+    val corrected = remember(currentKategori, currentSeveritas, currentWalkability, currentRasional, classification) {
         classification.copy(
             kategori = currentKategori,
             severitas = currentSeveritas,
             walkability = currentWalkability,
+            rasional = currentRasional,
         )
     }
     val userCorrected = corrected.kategori != classification.kategori ||
         corrected.severitas != classification.severitas ||
-        corrected.walkability != classification.walkability
+        corrected.walkability != classification.walkability ||
+        corrected.rasional != classification.rasional
+
+    val ratingPossible = corrected.kategori != Kategori.BUKAN_TROTOAR &&
+        corrected.kategori != Kategori.LAINNYA
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -112,82 +130,127 @@ fun ResultSheet(
             Spacer(Modifier.height(14.dp))
             AuditTimeHeader()
             SharpDivider()
+            Spacer(Modifier.height(14.dp))
+
+            // Single top banner replacing per-section "AI menebak..." copy
+            AiHelperBanner()
             Spacer(Modifier.height(18.dp))
 
             // 01 — Kondisi trotoar (walkability)
-            FieldLabel("01", "Kondisi trotoar")
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Seberapa nyaman trotoar ini untuk pejalan?",
-                style = MaterialTheme.typography.bodySmall,
-                color = Mute,
-            )
-            Spacer(Modifier.height(10.dp))
-            WalkabilityBar(
-                score = currentWalkability,
-                interactive = true,
-                onChange = { currentWalkability = it },
-                showLabel = true,
-            )
+            if (ratingPossible) {
+                FieldLabel("01", "Kondisi trotoar")
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Seberapa nyaman trotoar ini untuk pejalan.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Mute,
+                )
+                Spacer(Modifier.height(14.dp))
+                WalkabilityBar(
+                    score = currentWalkability,
+                    interactive = true,
+                    onChange = { currentWalkability = it },
+                    showLabel = false,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Ketuk segmen untuk menilai. Ketuk lagi untuk kosongkan.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Mute,
+                    fontStyle = FontStyle.Italic,
+                )
+                if (currentWalkability > 0) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "$currentWalkability dari 5 · ${walkabilityCopy(currentWalkability)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ink,
+                    )
+                }
+                Spacer(Modifier.height(22.dp))
+                SharpDivider()
+                Spacer(Modifier.height(18.dp))
+            }
 
-            Spacer(Modifier.height(20.dp))
-            SharpDivider()
-            Spacer(Modifier.height(18.dp))
-
-            // 02 — Kategori (klasifikasi masalah)
-            FieldLabel("02", "Klasifikasi masalah")
-            Spacer(Modifier.height(8.dp))
+            // 02 — Klasifikasi masalah
+            FieldLabel(if (ratingPossible) "02" else "01", "Klasifikasi masalah")
+            Spacer(Modifier.height(10.dp))
             DisplayHeadline(displayName(corrected.kategori))
             Spacer(Modifier.height(14.dp))
-            Text(
-                "AI menebak kategori ini. Ganti jika menurut Anda berbeda.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Mute,
-            )
-            Spacer(Modifier.height(10.dp))
             KategoriChips(selected = currentKategori, onSelect = { currentKategori = it })
 
-            // 03 — Severitas (only when the chosen kategori is a violation)
+            if (corrected.meter > 0 && !userCorrected) {
+                Spacer(Modifier.height(12.dp))
+                ConfidenceBlocks(corrected.meter)
+            }
+
+            // 03 — Severitas (only when violation)
             if (corrected.kategori.isViolation) {
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(22.dp))
                 SharpDivider()
                 Spacer(Modifier.height(18.dp))
 
-                FieldLabel("03", "Severitas")
-                Spacer(Modifier.height(6.dp))
+                FieldLabel(if (ratingPossible) "03" else "02", "Severitas")
+                Spacer(Modifier.height(8.dp))
                 Text(
                     "Seberapa mengganggu pelanggaran ini bagi pejalan.",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = Mute,
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 SeverityChips(
                     selected = currentSeveritas,
                     onSelect = { currentSeveritas = it },
                 )
-                Spacer(Modifier.height(6.dp))
-                ConfidenceBlocks(corrected.meter)
-            }
-
-            if (corrected.meter in 1..3 && corrected.kategori.isViolation) {
-                Spacer(Modifier.height(14.dp))
-                AgakRaguBanner()
-            }
-
-            if (corrected.rasional.isNotBlank()) {
-                Spacer(Modifier.height(20.dp))
-                SharpDivider()
-                Spacer(Modifier.height(14.dp))
-                FieldLabel(if (corrected.kategori.isViolation) "04" else "03", "Apa yang dilihat AI")
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 Text(
-                    corrected.rasional,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                        color = Ink,
-                    ),
+                    severityCopy(currentSeveritas),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = FontStyle.Italic,
+                    color = Ink,
                 )
             }
+
+            // 04 — Deskripsi (rasional, editable)
+            Spacer(Modifier.height(22.dp))
+            SharpDivider()
+            Spacer(Modifier.height(18.dp))
+            val deskripsiLabel = when {
+                corrected.kategori.isViolation && ratingPossible -> "04"
+                corrected.kategori.isViolation -> "03"
+                ratingPossible -> "03"
+                else -> "02"
+            }
+            FieldLabel(deskripsiLabel, "Deskripsi trotoar & masalah")
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Apa yang Anda lihat di lapangan. AI sudah membuat tebakan awal.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Mute,
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = currentRasional,
+                onValueChange = { currentRasional = it },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                maxLines = 8,
+                placeholder = {
+                    Text(
+                        "Belum ada deskripsi. Tambahkan sendiri.",
+                        color = Mute,
+                    )
+                },
+                shape = RoundedCornerShape(2.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Ink,
+                    unfocusedBorderColor = Ink.copy(alpha = 0.4f),
+                    focusedTextColor = Ink,
+                    unfocusedTextColor = Ink,
+                    cursorColor = Ink,
+                ),
+            )
 
             Spacer(Modifier.height(24.dp))
             if (corrected.kategori.isViolation) {
@@ -203,7 +266,7 @@ fun ResultSheet(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
-                        "Simpan ke linimasa tetap",
+                        "Tetap simpan ke linimasa",
                         color = Mute,
                         style = MaterialTheme.typography.labelLarge,
                     )
@@ -216,6 +279,42 @@ fun ResultSheet(
 // ───────────────────────────────────────────────────────────────────────────
 // Components
 // ───────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun AiHelperBanner() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Ink.copy(alpha = 0.06f))
+            .border(1.dp, Ink.copy(alpha = 0.4f))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            "AI",
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
+            color = Ink,
+            letterSpacing = 1.4.sp,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "AI sudah menebak isian di bawah",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Ink,
+            )
+            Text(
+                "Anda relawan audit — ubah apa pun yang menurut Anda salah.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Mute,
+            )
+        }
+    }
+}
 
 @Composable
 private fun PhotoHero(bitmap: Bitmap, bbox: BBox, showBbox: Boolean) {
@@ -342,45 +441,12 @@ private fun ConfidenceBlocks(meter: Int) {
         }
         Spacer(Modifier.width(10.dp))
         Text(
-            "Keyakinan AI: ${confidenceLabel(clamped)}",
+            "AI ${confidenceLabel(clamped)}",
             style = MaterialTheme.typography.labelSmall,
             color = color,
             fontWeight = FontWeight.SemiBold,
+            fontStyle = FontStyle.Italic,
         )
-    }
-}
-
-@Composable
-private fun AgakRaguBanner() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SevSedang.copy(alpha = 0.14f))
-            .border(1.5.dp, SevSedang)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text(
-            "?",
-            color = SevSedang,
-            fontWeight = FontWeight.ExtraBold,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 16.sp,
-        )
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                "AI agak ragu",
-                color = SevSedang,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                "Periksa kategori dan severitas di atas — Anda bisa memperbaiki.",
-                color = Ink,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
     }
 }
 
@@ -410,7 +476,7 @@ private fun SeverityChips(selected: Severitas, onSelect: (Severitas) -> Unit) {
                     .background(if (sev == selected) accent else PaperHi)
                     .border(1.5.dp, accent)
                     .clickable { onSelect(sev) }
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = 12.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -498,6 +564,21 @@ private fun severityColor(s: Severitas): Color = when (s) {
     Severitas.RENDAH -> SevRendah
     Severitas.SEDANG -> SevSedang
     Severitas.TINGGI -> SevTinggi
+}
+
+private fun severityCopy(s: Severitas): String = when (s) {
+    Severitas.RENDAH -> "Pejalan masih bisa lewat dengan mudah."
+    Severitas.SEDANG -> "Pejalan harus menghindar atau memperlambat langkah."
+    Severitas.TINGGI -> "Pejalan terpaksa turun ke jalan raya."
+}
+
+private fun walkabilityCopy(score: Int): String = when (score) {
+    1 -> "Tidak dapat dilalui pejalan kaki."
+    2 -> "Sangat sulit, banyak halangan."
+    3 -> "Bisa dilalui dengan susah payah."
+    4 -> "Cukup nyaman untuk berjalan."
+    5 -> "Sangat baik, ramah pejalan dan difabel."
+    else -> "—"
 }
 
 private fun confidenceColor(meter: Int): Color = when (meter) {
