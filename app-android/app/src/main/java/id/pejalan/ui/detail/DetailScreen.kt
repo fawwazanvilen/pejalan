@@ -70,6 +70,7 @@ import id.pejalan.ml.isViolation
 import id.pejalan.ml.primary
 import id.pejalan.ml.toggle
 import id.pejalan.ui.common.WalkabilityBar
+import id.pejalan.ui.theme.HiVis
 import id.pejalan.ui.theme.Ink
 import id.pejalan.ui.theme.Mute
 import id.pejalan.ui.theme.PaperHi
@@ -183,6 +184,11 @@ fun DetailScreen(
                     })
                 }
 
+                if (current.status == LaporanStatus.DRAFT) {
+                    Spacer(Modifier.height(16.dp))
+                    DraftBanner()
+                }
+
                 Spacer(Modifier.height(14.dp))
                 AuditMeta(current)
                 Spacer(Modifier.height(14.dp))
@@ -279,6 +285,7 @@ fun DetailScreen(
             }
 
             // Save bar
+            val isDraft = current.status == LaporanStatus.DRAFT
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = PaperHi,
@@ -287,17 +294,36 @@ fun DetailScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            db.laporanDao().updateUserContent(
-                                id = current.id,
-                                kategori = kategori,
-                                severitas = severitas,
-                                walkability = walkability,
-                                rasional = rasional,
-                            )
+                            if (isDraft) {
+                                // Promote draft to a real laporan. If user has filled in any
+                                // rationale we treat it as classified; otherwise we queue it.
+                                val hasContent = rasional.isNotBlank() || kategori != current.kategori
+                                if (hasContent) {
+                                    db.laporanDao().updateUserContent(
+                                        id = current.id,
+                                        kategori = kategori,
+                                        severitas = severitas,
+                                        walkability = walkability,
+                                        rasional = rasional,
+                                    )
+                                } else {
+                                    db.laporanDao().updateStatus(current.id, LaporanStatus.PENDING)
+                                    queue.enqueue()
+                                }
+                                Toast.makeText(context, "Disimpan ke linimasa", Toast.LENGTH_SHORT).show()
+                            } else {
+                                db.laporanDao().updateUserContent(
+                                    id = current.id,
+                                    kategori = kategori,
+                                    severitas = severitas,
+                                    walkability = walkability,
+                                    rasional = rasional,
+                                )
+                            }
                             onBack()
                         }
                     },
-                    enabled = dirty && !isSeed,
+                    enabled = !isSeed && (isDraft || dirty),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(20.dp)
@@ -313,6 +339,7 @@ fun DetailScreen(
                     Text(
                         when {
                             isSeed -> "Contoh — tidak bisa disunting"
+                            isDraft -> "Simpan ke linimasa"
                             dirty -> "Simpan perubahan"
                             else -> "Tidak ada perubahan"
                         },
@@ -417,6 +444,33 @@ private fun AuditMeta(laporan: Laporan) {
                     fontStyle = FontStyle.Italic,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DraftBanner() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HiVis.copy(alpha = 0.22f))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Text(
+                "Draf belum disimpan ke linimasa",
+                style = MaterialTheme.typography.labelMedium,
+                color = Ink,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.4.sp,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "Tinjau dan ubah, lalu ketuk Simpan untuk mengirimkan.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Ink.copy(alpha = 0.8f),
+            )
         }
     }
 }
