@@ -133,6 +133,7 @@ private sealed interface CaptureState {
         val classification: Classification?,
         val userCorrected: Boolean,
         val phase: SavingPhase,
+        val status: LaporanStatus,
     ) : CaptureState
     data class Saved(val laporan: Laporan) : CaptureState
 }
@@ -191,8 +192,9 @@ private fun CaptureRoute(
         bitmap: Bitmap,
         classification: Classification?,
         userCorrected: Boolean,
+        status: LaporanStatus,
     ) {
-        val saving = CaptureState.Saving(bitmap, classification, userCorrected, SavingPhase.Fetching)
+        val saving = CaptureState.Saving(bitmap, classification, userCorrected, SavingPhase.Fetching, status)
         state = saving
         if (hasLocationPermission(context)) {
             proceedFromPermission(
@@ -214,30 +216,43 @@ private fun CaptureRoute(
         classification: Classification?,
         cachedLocation: Location?,
         userCorrected: Boolean,
+        status: LaporanStatus,
     ) {
         if (cachedLocation != null) {
             scope.launch {
                 val saved = saveLaporan(
-                    context, db, bitmap, classification, userCorrected, cachedLocation,
-                    status = if (classification == null) LaporanStatus.PENDING else LaporanStatus.CLASSIFIED,
+                    context, db, bitmap, classification, userCorrected, cachedLocation, status,
                 )
-                if (classification == null) {
-                    queue.enqueue()
-                    Toast.makeText(context, "Antri diproses", Toast.LENGTH_SHORT).show()
-                    state = CaptureState.Camera
-                } else {
-                    state = CaptureState.Saved(saved)
-                }
+                onSavedCompleted(saved, status)
             }
         } else {
-            startSaveWithLocationFlow(bitmap, classification, userCorrected)
+            startSaveWithLocationFlow(bitmap, classification, userCorrected, status)
+        }
+    }
+
+    fun onSavedCompleted(saved: Laporan, status: LaporanStatus) {
+        when (status) {
+            LaporanStatus.DRAFT -> {
+                Toast.makeText(context, "Disimpan sebagai draf", Toast.LENGTH_SHORT).show()
+                state = CaptureState.Camera
+            }
+            LaporanStatus.PENDING -> {
+                queue.enqueue()
+                Toast.makeText(context, "Antri diproses", Toast.LENGTH_SHORT).show()
+                state = CaptureState.Camera
+            }
+            LaporanStatus.CLASSIFIED, LaporanStatus.FAILED -> {
+                state = CaptureState.Saved(saved)
+            }
         }
     }
 
     fun retrySave() {
         val current = state
         if (current is CaptureState.Saving) {
-            startSaveWithLocationFlow(current.bitmap, current.classification, current.userCorrected)
+            startSaveWithLocationFlow(
+                current.bitmap, current.classification, current.userCorrected, current.status,
+            )
         }
     }
 
@@ -261,16 +276,25 @@ private fun CaptureRoute(
         is CaptureState.Result -> ResultSheet(
             bitmap = s.bitmap,
             classification = s.classification,
-            onDismiss = { state = CaptureState.Camera },
+            onDismiss = {
+                // Dismissed result → save as draft so the user can come back to it.
+                saveOrPromptForLocation(
+                    s.bitmap, s.classification, s.location, false, LaporanStatus.DRAFT,
+                )
+            },
             onConfirm = { corrected, userCorrected ->
                 if (corrected.kategori.isViolation) {
-                    saveOrPromptForLocation(s.bitmap, corrected, s.location, userCorrected)
+                    saveOrPromptForLocation(
+                        s.bitmap, corrected, s.location, userCorrected, LaporanStatus.CLASSIFIED,
+                    )
                 } else {
                     state = CaptureState.Camera
                 }
             },
             onSaveAnyway = { corrected, userCorrected ->
-                saveOrPromptForLocation(s.bitmap, corrected, s.location, userCorrected)
+                saveOrPromptForLocation(
+                    s.bitmap, corrected, s.location, userCorrected, LaporanStatus.CLASSIFIED,
+                )
             },
         )
         is CaptureState.ConfirmPhoto -> ConfirmPhotoOverlay(
@@ -296,7 +320,8 @@ private fun CaptureRoute(
                     CaptureMode.Cepat -> {
                         scope.launch {
                             val location = if (hasLocationPermission(context)) fetchLocation(fusedClient) else null
-                            saveOrPromptForLocation(s.bitmap, null, location, false)
+                            // Cepat-mode captures land as drafts — user reviews/submits later from Linimasa.
+                            saveOrPromptForLocation(s.bitmap, null, location, false, LaporanStatus.DRAFT)
                         }
                     }
                 }
@@ -330,17 +355,23 @@ private fun proceedFromPermission(
         if (location == null) {
             setState(saving.copy(phase = SavingPhase.LocationTimeout))
         } else {
-            val status = if (saving.classification == null) LaporanStatus.PENDING else LaporanStatus.CLASSIFIED
             val saved = saveLaporan(
                 context, db, saving.bitmap, saving.classification,
-                saving.userCorrected, location, status,
+                saving.userCorrected, location, saving.status,
             )
-            if (saving.classification == null) {
-                queue.enqueue()
-                Toast.makeText(context, "Antri diproses", Toast.LENGTH_SHORT).show()
-                setState(CaptureState.Camera)
-            } else {
-                setState(CaptureState.Saved(saved))
+            when (saving.status) {
+                LaporanStatus.DRAFT -> {
+                    Toast.makeText(context, "Disimpan sebagai draf", Toast.LENGTH_SHORT).show()
+                    setState(CaptureState.Camera)
+                }
+                LaporanStatus.PENDING -> {
+                    queue.enqueue()
+                    Toast.makeText(context, "Antri diproses", Toast.LENGTH_SHORT).show()
+                    setState(CaptureState.Camera)
+                }
+                LaporanStatus.CLASSIFIED, LaporanStatus.FAILED -> {
+                    setState(CaptureState.Saved(saved))
+                }
             }
         }
     }
