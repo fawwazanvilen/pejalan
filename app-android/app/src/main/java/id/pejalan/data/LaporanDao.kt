@@ -13,23 +13,31 @@ interface LaporanDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(laporan: Laporan)
 
-    @Query("SELECT COUNT(*) FROM laporan")
+    // All counts and feeds exclude DRAFT — drafts aren't part of the audit corpus yet.
+
+    @Query("SELECT COUNT(*) FROM laporan WHERE status != 'DRAFT'")
     suspend fun totalCount(): Int
 
-    @Query("SELECT COUNT(*) FROM laporan WHERE createdAt >= :startOfDayMs")
+    @Query("SELECT COUNT(*) FROM laporan WHERE createdAt >= :startOfDayMs AND status != 'DRAFT'")
     fun observeCountSince(startOfDayMs: Long): Flow<Int>
 
-    @Query("SELECT * FROM laporan ORDER BY createdAt DESC")
+    @Query("SELECT * FROM laporan WHERE status != 'DRAFT' ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<Laporan>>
 
-    @Query("SELECT COUNT(*) FROM laporan")
+    @Query("SELECT COUNT(*) FROM laporan WHERE status != 'DRAFT'")
     fun observeTotal(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM laporan WHERE kategori = 'NIHIL'")
+    @Query("SELECT COUNT(*) FROM laporan WHERE kategori = 'NIHIL' AND status != 'DRAFT'")
     fun observeNihilCount(): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM laporan WHERE status = 'PENDING'")
     fun observePendingCount(): Flow<Int>
+
+    @Query("SELECT * FROM laporan WHERE status = 'DRAFT' ORDER BY createdAt DESC")
+    fun observeDrafts(): Flow<List<Laporan>>
+
+    @Query("SELECT COUNT(*) FROM laporan WHERE status = 'DRAFT'")
+    fun observeDraftCount(): Flow<Int>
 
     @Query("SELECT * FROM laporan WHERE status = 'PENDING' ORDER BY createdAt ASC LIMIT 1")
     suspend fun findOnePending(): Laporan?
