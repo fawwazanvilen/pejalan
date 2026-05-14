@@ -25,11 +25,20 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,11 +52,13 @@ import id.pejalan.data.Laporan
 import id.pejalan.data.LaporanDb
 import id.pejalan.data.LaporanStatus
 import id.pejalan.data.SeedData
+import id.pejalan.ml.ClassificationQueue
 import id.pejalan.ml.Kategori
 import id.pejalan.ml.Severitas
 import id.pejalan.ml.isViolation
 import id.pejalan.ml.primary
 import id.pejalan.ui.common.WalkabilityBar
+import id.pejalan.ui.theme.HiVis
 import id.pejalan.ui.theme.Ink
 import id.pejalan.ui.theme.Mute
 import id.pejalan.ui.theme.PaperHi
@@ -60,12 +71,18 @@ import java.io.File
 @Composable
 fun FeedScreen(
     db: LaporanDb,
+    queue: ClassificationQueue,
     onOpenDetail: (String) -> Unit = {},
 ) {
     val real by db.laporanDao().observeAll().collectAsState(initial = emptyList())
+    val drafts by db.laporanDao().observeDrafts().collectAsState(initial = emptyList())
     val now = System.currentTimeMillis()
     val seed = remember { SeedData.entries(now) }
     val all = remember(real) { (real + seed).sortedByDescending { it.createdAt } }
+
+    var draftsExpanded by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val dao = db.laporanDao()
 
     val listState = rememberLazyListState()
     val firstId = all.firstOrNull()?.id
@@ -102,11 +119,150 @@ fun FeedScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (drafts.isNotEmpty()) {
+                    item(key = "draft-header") {
+                        DraftHeader(
+                            count = drafts.size,
+                            expanded = draftsExpanded,
+                            onToggle = { draftsExpanded = !draftsExpanded },
+                        )
+                    }
+                    if (draftsExpanded) {
+                        items(drafts, key = { "draft-${it.id}" }) { draft ->
+                            DraftCard(draft, onClick = { onOpenDetail(draft.id) })
+                        }
+                        item(key = "draft-submit-all") {
+                            SubmitAllButton(
+                                count = drafts.size,
+                                onClick = {
+                                    scope.launch {
+                                        var anyPending = false
+                                        drafts.forEach { d ->
+                                            val nextStatus = if (d.rasional.isBlank()) {
+                                                anyPending = true
+                                                LaporanStatus.PENDING
+                                            } else {
+                                                LaporanStatus.CLASSIFIED
+                                            }
+                                            dao.updateStatus(d.id, nextStatus)
+                                        }
+                                        if (anyPending) queue.enqueue()
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
                 items(all, key = { it.id }) { laporan ->
                     LaporanCard(laporan, onClick = { onOpenDetail(laporan.id) })
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DraftHeader(count: Int, expanded: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HiVis.copy(alpha = 0.18f))
+            .border(1.4.dp, Ink)
+            .clickable { onToggle() }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Draf",
+            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Ink,
+            letterSpacing = 0.8.sp,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "($count)",
+            style = MaterialTheme.typography.labelMedium,
+            color = Ink,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            if (expanded) "Sembunyikan" else "Lihat",
+            style = MaterialTheme.typography.labelMedium,
+            color = Ink,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.width(4.dp))
+        Icon(
+            imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+            contentDescription = null,
+            tint = Ink,
+        )
+    }
+}
+
+@Composable
+private fun DraftCard(draft: Laporan, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(PaperHi)
+            .border(1.2.dp, Ink.copy(alpha = 0.6f))
+            .clickable { onClick() }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Thumbnail(
+            photoPath = draft.photoPath,
+            tintWhenMissing = Mute,
+            label = "D",
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                relativeTime(draft.createdAt),
+                style = MaterialTheme.typography.labelMedium,
+                color = Mute,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                if (draft.rasional.isBlank()) "Belum diklasifikasi" else "Siap dikirim",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Ink,
+            )
+            if (draft.rasional.isNotBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    draft.rasional,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Mute,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubmitAllButton(count: Int, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Ink)
+            .clickable { onClick() }
+            .padding(vertical = 14.dp),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            "Submit semua ($count)",
+            color = PaperHi,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.6.sp,
+        )
     }
 }
 

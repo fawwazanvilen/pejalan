@@ -96,6 +96,7 @@ fun PejalanNav(
             composable("feed") {
                 FeedScreen(
                     db = db,
+                    queue = queue,
                     onOpenDetail = { id -> navController.navigate("detail/$id") },
                 )
             }
