@@ -69,12 +69,24 @@ data class Classification(
     val meter: Int get() = ((keyakinan * 5).toInt() + 1).coerceIn(1, 5)
 
     companion object {
+        // Returned when the classifier ran but failed to produce a valid result.
         val Fallback = Classification(
             kategori = setOf(Kategori.LAINNYA),
             severitas = Severitas.RENDAH,
             keyakinan = 0f,
             walkability = 0,
             rasional = "Tidak dapat mengklasifikasi otomatis. Coba foto ulang dengan sudut berbeda.",
+            bbox = BBox.Full,
+        )
+
+        // Used for drafts that never went through a classifier (e.g. Mode Cepat).
+        // Blank rasional + empty kategori so DraftCard reads "Belum diklasifikasi".
+        val Empty = Classification(
+            kategori = emptySet(),
+            severitas = Severitas.RENDAH,
+            keyakinan = 0f,
+            walkability = 0,
+            rasional = "",
             bbox = BBox.Full,
         )
     }

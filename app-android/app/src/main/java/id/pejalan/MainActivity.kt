@@ -421,7 +421,9 @@ private suspend fun saveLaporan(
         bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
     }
 
-    val effective = classification ?: Classification.Fallback
+    // Cepat-mode drafts pass null — store as Empty (blank rasional) so the
+    // DraftCard reads "Belum diklasifikasi" instead of inheriting Fallback copy.
+    val effective = classification ?: Classification.Empty
     val laporan = Laporan(
         id = id,
         createdAt = now,
