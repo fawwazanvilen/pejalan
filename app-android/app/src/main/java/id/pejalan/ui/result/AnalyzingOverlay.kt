@@ -95,10 +95,11 @@ fun AnalyzingOverlay(
                     .padding(horizontal = 28.dp),
             ) {
                 Text(
-                    when (mode) {
-                        AiMode.Lokal -> "Gemma 4 sedang berjalan di perangkat"
-                        AiMode.Cloud -> "Gemini Flash sedang memproses di cloud"
-                    },
+//                    when (mode) {
+//                        AiMode.Lokal -> "Gemma 4 sedang berjalan di perangkat"
+//                        AiMode.Cloud -> "Gemini Flash sedang memproses di cloud"
+//                    },
+                    "Model sedang menganalisis...",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
