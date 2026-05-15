@@ -189,7 +189,7 @@ private fun DraftHeader(count: Int, expanded: Boolean, onToggle: () -> Unit) {
         )
         Spacer(Modifier.weight(1f))
         Text(
-            if (expanded) "Sembunyikan" else "Lihat",
+            if (expanded) "Sembunyikan" else "Tampilkan",
             style = MaterialTheme.typography.labelMedium,
             color = Ink,
             fontWeight = FontWeight.Medium,
