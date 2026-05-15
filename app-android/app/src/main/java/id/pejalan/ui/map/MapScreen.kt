@@ -57,6 +57,7 @@ import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
+import com.mapbox.maps.extension.compose.style.MapStyle
 import com.mapbox.maps.extension.compose.annotation.generated.CircleAnnotationGroup
 import com.mapbox.maps.extension.style.expressions.dsl.generated.literal
 import com.mapbox.maps.plugin.annotation.AnnotationConfig
@@ -151,6 +152,9 @@ fun MapScreen(db: LaporanDb, onOpenDetail: (String) -> Unit) {
     MapboxMap(
         modifier = Modifier.fillMaxSize(),
         mapViewportState = viewportState,
+        // Light basemap reads as a calmer backdrop for the violation markers
+        // (red/orange/yellow against off-white instead of fighting Streets v12).
+        style = { MapStyle(style = "mapbox://styles/mapbox/light-v11") },
     ) {
         if (hasLocPerm) {
             MapEffect(Unit) { mapView ->
