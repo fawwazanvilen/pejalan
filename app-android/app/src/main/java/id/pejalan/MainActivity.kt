@@ -412,7 +412,7 @@ private suspend fun saveLaporan(
     val now = System.currentTimeMillis()
     val cal = Calendar.getInstance().apply { timeInMillis = now }
     val dayOfYear = cal.get(Calendar.DAY_OF_YEAR)
-    val countBefore = dao.totalCount()
+    val countBefore = dao.countAll()
     val id = "PJ-${dayOfYear.toString().padStart(3, '0')}-${(countBefore + 1).toString().padStart(4, '0')}"
 
     val photoDir = File(context.filesDir, "laporan").apply { mkdirs() }

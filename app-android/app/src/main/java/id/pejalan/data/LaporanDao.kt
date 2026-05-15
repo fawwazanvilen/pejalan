@@ -18,6 +18,11 @@ interface LaporanDao {
     @Query("SELECT COUNT(*) FROM laporan WHERE status != 'DRAFT'")
     suspend fun totalCount(): Int
 
+    // Counts every row including drafts. Use this for ID generation so multiple
+    // concurrent draft inserts can't collide on PJ-DDD-NNNN keys.
+    @Query("SELECT COUNT(*) FROM laporan")
+    suspend fun countAll(): Int
+
     @Query("SELECT COUNT(*) FROM laporan WHERE createdAt >= :startOfDayMs AND status != 'DRAFT'")
     fun observeCountSince(startOfDayMs: Long): Flow<Int>
 
