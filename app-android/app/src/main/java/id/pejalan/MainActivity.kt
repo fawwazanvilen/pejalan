@@ -211,6 +211,23 @@ private fun CaptureRoute(
         }
     }
 
+    fun onSavedCompleted(saved: Laporan, status: LaporanStatus) {
+        when (status) {
+            LaporanStatus.DRAFT -> {
+                Toast.makeText(context, "Disimpan sebagai draf", Toast.LENGTH_SHORT).show()
+                state = CaptureState.Camera
+            }
+            LaporanStatus.PENDING -> {
+                queue.enqueue()
+                Toast.makeText(context, "Antri diproses", Toast.LENGTH_SHORT).show()
+                state = CaptureState.Camera
+            }
+            LaporanStatus.CLASSIFIED, LaporanStatus.FAILED -> {
+                state = CaptureState.Saved(saved)
+            }
+        }
+    }
+
     fun saveOrPromptForLocation(
         bitmap: Bitmap,
         classification: Classification?,
@@ -227,23 +244,6 @@ private fun CaptureRoute(
             }
         } else {
             startSaveWithLocationFlow(bitmap, classification, userCorrected, status)
-        }
-    }
-
-    fun onSavedCompleted(saved: Laporan, status: LaporanStatus) {
-        when (status) {
-            LaporanStatus.DRAFT -> {
-                Toast.makeText(context, "Disimpan sebagai draf", Toast.LENGTH_SHORT).show()
-                state = CaptureState.Camera
-            }
-            LaporanStatus.PENDING -> {
-                queue.enqueue()
-                Toast.makeText(context, "Antri diproses", Toast.LENGTH_SHORT).show()
-                state = CaptureState.Camera
-            }
-            LaporanStatus.CLASSIFIED, LaporanStatus.FAILED -> {
-                state = CaptureState.Saved(saved)
-            }
         }
     }
 
