@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="600" viewBox="0 0 1500 600">
+  <rect x="0" y="0" width="1500" height="600" fill="#F4EFE3"/>
+  <text x="750" y="320" text-anchor="middle"
+        font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
+        font-weight="800" font-size="180" letter-spacing="-0.025em"
+        fill="#161616">pejalan.</text>
+  <text x="750" y="400" text-anchor="middle"
+        font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
+        font-weight="400" font-size="32" letter-spacing="-0.005em"
+        fill="#161616">Citizen-built audit data for Jakarta's sidewalks.</text>
+  <text x="50" y="50"
+        font-family="'JetBrains Mono', 'SF Mono', 'Courier New', monospace"
+        font-weight="500" font-size="18" letter-spacing="0.08em"
+        fill="#6B6457">GEMMA 4 GOOD HACKATHON · 2026</text>
+  <text x="1450" y="565" text-anchor="end"
+        font-family="'JetBrains Mono', 'SF Mono', 'Courier New', monospace"
+        font-weight="500" font-size="18" letter-spacing="0.06em"
+        fill="#6B6457">PJ-138-0007 · KELAPA GADING · -6.1576, 106.9008</text>
+</svg>

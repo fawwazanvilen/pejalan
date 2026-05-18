@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect x="0" y="0" width="1024" height="1024" fill="#161616"/>
+  <text x="512" y="640"
+        text-anchor="middle"
+        font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
+        font-weight="800"
+        font-size="540"
+        letter-spacing="-0.04em"
+        fill="#F4EFE3">p.</text>
+</svg>

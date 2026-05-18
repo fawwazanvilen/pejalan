@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <rect x="0" y="0" width="1920" height="1080" fill="#F4EFE3"/>
+  <text x="960" y="540" text-anchor="middle"
+        font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
+        font-weight="800" font-size="260" letter-spacing="-0.025em"
+        fill="#161616">pejalan.</text>
+  <text x="960" y="640" text-anchor="middle"
+        font-family="'JetBrains Mono', 'SF Mono', 'Courier New', monospace"
+        font-weight="500" font-size="28" letter-spacing="0.06em"
+        fill="#6B6457">github.com/fawwazanvilen/pejalan</text>
+  <text x="960" y="1020" text-anchor="middle"
+        font-family="'JetBrains Mono', 'SF Mono', 'Courier New', monospace"
+        font-weight="500" font-size="20" letter-spacing="0.1em"
+        fill="#6B6457">GEMMA 4 GOOD HACKATHON · MAY 2026</text>
+</svg>
