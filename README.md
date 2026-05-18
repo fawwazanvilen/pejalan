@@ -24,7 +24,7 @@ Cloud mode hits Gemini Flash via the Google AI API. The build has a strict $5 bi
 For the full on-device path. No network, no API key, photos stay local.
 
 1. Install the APK as above.
-2. Download the Gemma 4 E2B LiteRT-LM model: [LINK_TO_GEMMA_4_E2B_LITERTLM]
+2. Download the Gemma 4 E2B LiteRT-LM variant from [Kaggle Models](https://www.kaggle.com/models/google/gemma-4).
 3. Push it to the device:
 
    ```
