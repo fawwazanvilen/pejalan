@@ -25,6 +25,12 @@ desktop.ini
 .gradle/
 build/
 
+# Android build artifacts and signing material — never commit
+*.apk
+*.aab
+*.keystore
+*.jks
+
 # Local env / secrets
 .env
 .env.local
